@@ -29,79 +29,188 @@
   <div id="status">🙏 Starting Camera...</div>
 
   <script>
-    // ── Golden revolving ring/halo component ─────────────────────────────
-    AFRAME.registerComponent('golden-halo', {
+    // ── Golden Orbiting Ring component ───────────────────────────────────
+    AFRAME.registerComponent('golden-ring', {
       schema: {
-        active:      { type: 'boolean', default: false  },
-        ringRadius:  { type: 'number',  default: 0.13   }, // size of ring
-        tubeRadius:  { type: 'number',  default: 0.008  }, // thickness
-        speed:       { type: 'number',  default: 1.2    }, // rotation speed
-        glowSpeed:   { type: 'number',  default: 1.8    }, // pulse speed
+        active:       { type: 'boolean', default: false },
+        // Ring geometry
+        ringRadius:   { type: 'number', default: 0.18 },   // orbit radius around Shiva
+        tubeRadius:   { type: 'number', default: 0.012 },  // thickness of the torus
+        // Glow particles along the ring
+        glowCount:    { type: 'int',    default: 60 },
+        // Tilt of the ring plane (degrees) — tilted like in the image
+        tiltX:        { type: 'number', default: 15 },
+        tiltZ:        { type: 'number', default: 5  },
       },
 
       init() {
-        this.rings    = [];
-        this.time     = 0;
-        this.group    = new THREE.Group();
+        this.group      = new THREE.Group();
+        this.ringMesh   = null;
+        this.glowMeshes = [];
+        this.time       = 0;
+        this.active     = false;
+
         this.el.object3D.add(this.group);
-        this._buildRings();
+        this._buildRing();
+        this._buildGlowParticles();
       },
 
-      _buildRings() {
-        // Main golden ring
-        this._addRing(0.13,  0.009, 0xffaa00, 1.0,  0,    0); // main gold
-        this._addRing(0.13,  0.004, 0xffdd55, 0.7,  0,    0); // inner glow lighter
-        this._addRing(0.135, 0.003, 0xff6600, 0.5,  0,    0); // outer ember
+      _buildRing() {
+        const { ringRadius, tubeRadius, tiltX, tiltZ } = this.data;
 
-        // Second tilted ring (like in image — slightly angled)
-        this._addRing(0.12,  0.006, 0xffbb00, 0.6,  15,   0); // tilted ring 1
-        this._addRing(0.12,  0.006, 0xffbb00, 0.6, -15,   0); // tilted ring 2
-      },
-
-      _addRing(radius, tube, color, opacity, rotX, rotZ) {
-        const geo  = new THREE.TorusGeometry(radius, tube, 12, 80);
-        const mat  = new THREE.MeshBasicMaterial({
-          color,
-          transparent: true,
-          opacity,
-          depthWrite: false,
+        // Main torus — golden metallic look
+        const geo = new THREE.TorusGeometry(ringRadius, tubeRadius, 16, 100);
+        const mat = new THREE.MeshStandardMaterial({
+          color:        new THREE.Color('#FFD700'),
+          emissive:     new THREE.Color('#FF8C00'),
+          emissiveIntensity: 1.2,
+          metalness:    0.9,
+          roughness:    0.1,
+          transparent:  true,
+          opacity:      0,
         });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.rotation.x = THREE.MathUtils.degToRad(rotX);
-        mesh.rotation.z = THREE.MathUtils.degToRad(rotZ);
-        mesh.userData.baseOpacity = opacity;
-        this.group.add(mesh);
-        this.rings.push(mesh);
+
+        this.ringMesh = new THREE.Mesh(geo, mat);
+        // Tilt to match the image — slightly angled, not perfectly vertical
+        this.ringMesh.rotation.x = THREE.MathUtils.degToRad(tiltX);
+        this.ringMesh.rotation.z = THREE.MathUtils.degToRad(tiltZ);
+        this.group.add(this.ringMesh);
+
+        // Outer glow ring (slightly larger, more transparent)
+        const glowGeo = new THREE.TorusGeometry(ringRadius, tubeRadius * 2.8, 8, 100);
+        const glowMat = new THREE.MeshBasicMaterial({
+          color:       new THREE.Color('#FFA500'),
+          transparent: true,
+          opacity:     0,
+          depthWrite:  false,
+          side:        THREE.DoubleSide,
+        });
+        this.outerGlow = new THREE.Mesh(glowGeo, glowMat);
+        this.outerGlow.rotation.x = THREE.MathUtils.degToRad(tiltX);
+        this.outerGlow.rotation.z = THREE.MathUtils.degToRad(tiltZ);
+        this.group.add(this.outerGlow);
+      },
+
+      _buildGlowParticles() {
+        const { glowCount, ringRadius, tiltX, tiltZ } = this.data;
+        const tiltXRad = THREE.MathUtils.degToRad(tiltX);
+        const tiltZRad = THREE.MathUtils.degToRad(tiltZ);
+
+        for (let i = 0; i < glowCount; i++) {
+          const angle = (i / glowCount) * Math.PI * 2;
+
+          // Base size varies — creates sparkle effect
+          const size  = 0.006 + Math.random() * 0.010;
+          const geo   = new THREE.SphereGeometry(size, 5, 5);
+
+          // Alternate between warm gold and orange glow colours
+          const isGold = Math.random() > 0.35;
+          const mat = new THREE.MeshBasicMaterial({
+            color:       new THREE.Color(isGold ? '#FFD700' : '#FF6600'),
+            transparent: true,
+            opacity:     0,
+            depthWrite:  false,
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+
+          // Position on torus path
+          const x = Math.cos(angle) * this.data.ringRadius;
+          const y = Math.sin(angle) * this.data.ringRadius;
+          // Apply same tilt as ring
+          const cosX = Math.cos(tiltXRad), sinX = Math.sin(tiltXRad);
+          const cosZ = Math.cos(tiltZRad), sinZ = Math.sin(tiltZRad);
+
+          // Rotate point: first X then Z
+          const y1 = y * cosX;
+          const z1 = y * sinX;
+          const x2 = x * cosZ - z1 * sinZ;
+          const z2 = x * sinZ + z1 * cosZ;
+
+          mesh.position.set(x2, y1, z2);
+
+          this.group.add(mesh);
+          this.glowMeshes.push({
+            mesh,
+            angle,       // current angle on orbit
+            baseAngle: angle,
+            orbitSpeed: 0.8 + Math.random() * 0.4,  // slightly varied speeds for shimmer
+            pulsePeriod: 1.5 + Math.random() * 1.5,
+            pulseOffset: Math.random() * Math.PI * 2,
+          });
+        }
       },
 
       tick(time, delta) {
-        if (!this.data.active) return;
-        this.time += delta / 1000;
+        if (!this.active) return;
+        const dt = delta / 1000;
+        this.time += dt;
 
-        const t     = this.time;
-        const speed = this.data.speed;
+        const t = this.time;
+        const { ringRadius, tiltX, tiltZ } = this.data;
+        const tiltXRad = THREE.MathUtils.degToRad(tiltX);
+        const tiltZRad = THREE.MathUtils.degToRad(tiltZ);
 
-        // Rotate all rings around Y axis (revolving around Shiva)
-        this.rings.forEach((ring, i) => {
-          // Each ring rotates at slightly different speed for layered effect
-          const s = speed * (1 + i * 0.08);
-          ring.rotation.y += (delta / 1000) * s;
+        // Spin the whole ring group slowly
+        this.group.rotation.y = t * 0.6;
 
-          // Pulse opacity — golden shimmer effect
-          const pulse = 0.5 + 0.5 * Math.sin(t * this.data.glowSpeed + i * 1.2);
-          const base  = ring.userData.baseOpacity;
-          ring.material.opacity = base * (0.6 + 0.4 * pulse);
+        // Pulse emissive intensity on the main ring
+        if (this.ringMesh) {
+          const pulse = 0.8 + 0.6 * Math.sin(t * 2.0);
+          this.ringMesh.material.emissiveIntensity = pulse;
+        }
+
+        // Pulse outer glow opacity
+        if (this.outerGlow) {
+          this.outerGlow.material.opacity = 0.08 + 0.06 * Math.sin(t * 1.8);
+        }
+
+        // Update glow sparkle particles
+        this.glowMeshes.forEach(p => {
+          // Each particle orbits at slightly different speed → shimmer
+          p.angle += p.orbitSpeed * dt;
+
+          const x = Math.cos(p.angle) * ringRadius;
+          const y = Math.sin(p.angle) * ringRadius;
+
+          // Apply tilt
+          const cosX = Math.cos(tiltXRad), sinX = Math.sin(tiltXRad);
+          const cosZ = Math.cos(tiltZRad), sinZ = Math.sin(tiltZRad);
+          const y1 = y * cosX;
+          const z1 = y * sinX;
+          const x2 = x * cosZ - z1 * sinZ;
+          const z2 = x * sinZ + z1 * cosZ;
+
+          p.mesh.position.set(x2, y1, z2);
+
+          // Pulse opacity for sparkle
+          const pulse = 0.5 + 0.5 * Math.sin(t / p.pulsePeriod * Math.PI * 2 + p.pulseOffset);
+          p.mesh.material.opacity = 0.4 + 0.6 * pulse;
+
+          // Slight scale pulse
+          const s = 0.8 + 0.5 * pulse;
+          p.mesh.scale.set(s, s, s);
         });
       },
 
       setActive(val) {
-        this.data.active = val;
-        this.group.visible = val;
+        this.active = val;
+        const targetOpacity = val ? 1.0 : 0;
+        const glowTarget    = val ? 0.12 : 0;
+
+        if (this.ringMesh)  this.ringMesh.material.opacity  = targetOpacity;
+        if (this.outerGlow) this.outerGlow.material.opacity = glowTarget;
+
         if (!val) {
-          // Reset rotations when hidden
-          this.rings.forEach(r => {
-            r.rotation.y = 0;
-            r.material.opacity = r.userData.baseOpacity;
+          // Reset rotation
+          this.group.rotation.y = 0;
+          this.glowMeshes.forEach(p => {
+            p.mesh.material.opacity = 0;
+            p.angle = p.baseAngle;
+          });
+        } else {
+          this.glowMeshes.forEach(p => {
+            p.angle = p.baseAngle;
           });
         }
       },
@@ -141,12 +250,12 @@
           src="#tech"
           position="0 -0.18 0"
           rotation="0 0 0"
-          scale="0.02 0.02 0.02"
+          scale="0.07 0.07 0.07"
           animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 6000; easing: linear;"
         ></a-gltf-model>
       </a-entity>
 
-      <!-- ☀️ Sun — behind head -->
+      <!-- ☀️ Sun -->
       <a-entity position="0 0 0.05" rotation="90 0 0">
         <a-gltf-model
           id="sun-model"
@@ -158,11 +267,11 @@
         ></a-gltf-model>
       </a-entity>
 
-      <!-- ✨ Golden halo ring — centered on Shiva's body -->
+      <!-- ✨ Golden Ring — centered on Shiva's body -->
       <a-entity
-        id="halo-entity"
-        position="0 0.08 0.15"
-        golden-halo="active: false; ringRadius: 0.13; tubeRadius: 0.008; speed: 1.2; glowSpeed: 1.8;"
+        id="ring-entity"
+        position="0 0.05 0.15"
+        golden-ring="active: false; ringRadius: 0.18; tubeRadius: 0.012; glowCount: 60; tiltX: 15; tiltZ: 5;"
       ></a-entity>
 
       <!-- 🙏 Shiva popup wrapper -->
@@ -189,7 +298,7 @@
     const sunEl        = document.getElementById("sun-model");
     const techEl       = document.getElementById("tech-model");
     const shivaWrapper = document.getElementById("shiva-wrapper");
-    const haloEl       = document.getElementById("halo-entity");
+    const ringEl       = document.getElementById("ring-entity");
     const targetEl     = document.querySelector("[mindar-image-target]");
 
     function showStatus(msg) {
@@ -197,15 +306,12 @@
       statusEl.classList.remove("hidden");
     }
 
-    function startHalo() {
-      // Wait for component to be ready
-      const comp = haloEl.components['golden-halo'];
-      if (comp) comp.setActive(true);
+    function startRing() {
+      ringEl.components['golden-ring'].setActive(true);
     }
 
-    function stopHalo() {
-      const comp = haloEl.components['golden-halo'];
-      if (comp) comp.setActive(false);
+    function stopRing() {
+      ringEl.components['golden-ring'].setActive(false);
     }
 
     // ── Popup animation ───────────────────────────────────────────────────
@@ -229,8 +335,8 @@
 
         shivaWrapper.emit("startPopup");
 
-        // Halo appears as Shiva rises
-        setTimeout(() => startHalo(), 400);
+        // Golden ring appears as Shiva rises
+        setTimeout(() => startRing(), 300);
 
       }, 50);
     }
@@ -268,7 +374,7 @@
       targetEl.addEventListener("targetLost", () => {
         showStatus("🔍 Point camera at the marker...");
         shivaWrapper.setAttribute("scale", "0 0 0");
-        stopHalo();
+        stopRing();
       });
     }
 
