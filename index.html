@@ -3,168 +3,231 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Shiva AR Camera Fix</title>
+<title>Shiva AR</title>
 
-<!-- AFRAME -->
 <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
-
-<!-- MINDAR -->
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
 <style>
-html, body{
-    margin:0;
-    padding:0;
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    background:#000;
-}
+  *, html, body { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#000; font-family: Arial, sans-serif; }
 
-a-scene{
-    position:fixed;
-    top:0;
-    left:0;
-    width:100%;
-    height:100%;
-}
+  a-scene { position:fixed; top:0; left:0; width:100%; height:100%; }
 
-/* camera video */
-video{
-    position:fixed !important;
-    top:0 !important;
-    left:0 !important;
-    width:100% !important;
-    height:100% !important;
-    object-fit:cover !important;
-    z-index:1 !important;
-}
+  video {
+    position:fixed !important; top:0 !important; left:0 !important;
+    width:100% !important; height:100% !important;
+    object-fit:cover !important; z-index:1 !important;
+  }
+  canvas {
+    position:fixed !important; top:0 !important; left:0 !important;
+    width:100% !important; height:100% !important; z-index:2 !important;
+  }
 
-/* ar canvas */
-canvas{
-    position:fixed !important;
-    top:0;
-    left:0;
-    width:100%;
-    height:100%;
-    z-index:2 !important;
-}
+  #status {
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    z-index:9999; background:rgba(0,0,0,0.8); color:#f4a800;
+    padding:10px 20px; border-radius:30px; font-size:13px;
+    letter-spacing:1px; white-space:nowrap; text-align:center;
+    max-width:90vw; white-space:normal;
+  }
 
-/* loading text */
-#status{
-    position:fixed;
-    top:20px;
-    left:50%;
-    transform:translateX(-50%);
-    z-index:9999;
-    background:rgba(0,0,0,0.7);
-    color:#f4a800;
-    padding:10px 20px;
-    border-radius:30px;
-    font-family:Arial;
-    font-size:14px;
-}
+  /* Slider controls to tune scale/position live */
+  #controls {
+    position:fixed; bottom:0; left:0; right:0; z-index:9999;
+    background:rgba(0,0,0,0.85); padding:12px 16px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .ctrl-row {
+    display:flex; align-items:center; gap:10px;
+  }
+  .ctrl-row label { color:#f4a800; font-size:11px; width:80px; flex-shrink:0; }
+  .ctrl-row input[type=range] { flex:1; accent-color:#f4a800; }
+  .ctrl-row span { color:#fff; font-size:11px; width:48px; text-align:right; flex-shrink:0; }
+  #controls button {
+    background:#f4a800; border:none; border-radius:20px;
+    padding:8px; color:#000; font-weight:700; font-size:12px; cursor:pointer;
+  }
 </style>
 </head>
-
 <body>
 
-<div id="status">Starting Camera...</div>
+<div id="status">Loading model…</div>
+
+<!-- Live tuning controls -->
+<div id="controls">
+  <div class="ctrl-row">
+    <label>Scale</label>
+    <input type="range" id="sl-scale" min="0.001" max="2" step="0.001" value="0.05">
+    <span id="lbl-scale">0.05</span>
+  </div>
+  <div class="ctrl-row">
+    <label>Y position</label>
+    <input type="range" id="sl-y" min="-1" max="2" step="0.01" value="0">
+    <span id="lbl-y">0</span>
+  </div>
+  <div class="ctrl-row">
+    <label>Rotation X</label>
+    <input type="range" id="sl-rx" min="-180" max="180" step="1" value="0">
+    <span id="lbl-rx">0</span>
+  </div>
+  <button onclick="logValues()">📋 Log values to console</button>
+</div>
 
 <a-scene
-mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
-embedded
-color-space="sRGB"
-renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
-vr-mode-ui="enabled:false"
-device-orientation-permission-ui="enabled:false"
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
+  embedded
+  color-space="sRGB"
+  renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
+  vr-mode-ui="enabled:false"
+  device-orientation-permission-ui="enabled:false"
 >
+  <a-assets timeout="0">
+    <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
+  </a-assets>
 
-<a-assets timeout="0">
-<a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
-</a-assets>
+  <a-light type="ambient" intensity="3"></a-light>
+  <a-light type="directional" intensity="4" position="0 2 1"></a-light>
 
-<!-- Lights -->
-<a-light type="ambient" intensity="3"></a-light>
-<a-light type="directional" intensity="4" position="0 2 1"></a-light>
+  <a-entity mindar-image-target="targetIndex: 0">
 
-<!-- Marker -->
-<a-entity mindar-image-target="targetIndex:0">
-
-    <!-- Shiva Model -->
     <a-entity
-        id="model"
-        gltf-model="#shiva"
-        position="0 0 0"
-        rotation="0 180 0"
-        scale="0.05 0.05 0.05"
-        animation="property: rotation; to:0 540 0; dur:15000; loop:true; easing:linear;">
-    </a-entity>
+      id="model"
+      gltf-model="#shiva"
+      position="0 0 0"
+      rotation="0 180 0"
+      scale="0.05 0.05 0.05"
+    ></a-entity>
 
-    <!-- Golden Ring -->
-    <a-torus
-        radius="0.6"
-        radius-tubular="0.02"
-        rotation="90 0 0"
-        color="#f4a800"
-        material="emissive:#f4a800; emissiveIntensity:2;">
+    <!-- Visible red sphere at origin — confirms marker is tracked -->
+    <a-sphere id="origin-dot"
+      radius="0.04" color="#ff0000"
+      position="0 0 0"
+      material="emissive:#ff0000; emissiveIntensity:2;">
+    </a-sphere>
+
+    <!-- Golden ring flat on marker -->
+    <a-torus radius="0.5" radius-tubular="0.015" rotation="90 0 0" color="#f4a800"
+             material="emissive:#f4a800; emissiveIntensity:1.5;">
     </a-torus>
 
-</a-entity>
+  </a-entity>
 
-<a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
-
+  <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 </a-scene>
 
 <script>
-const status = document.getElementById("status");
-const model = document.getElementById("model");
+  const statusEl = document.getElementById('status');
+  const model    = document.getElementById('model');
 
-/* model loaded */
-model.addEventListener("model-loaded", () => {
-    status.innerHTML = "Model Loaded. Scan Marker.";
-});
+  // ── Auto-scale from bounding box ──────────────────────────────
+  // Target: model fits in roughly 0.8 units tall (marker is ~1 unit wide in MindAR)
+  const TARGET_HEIGHT = 0.8;
 
-/* target found */
-document.querySelector("[mindar-image-target]")
-.addEventListener("targetFound", () => {
-    status.innerHTML = "Shiva Appeared";
-    setTimeout(()=>{
-        status.style.display="none";
-    },2000);
-});
+  model.addEventListener('model-loaded', () => {
+    statusEl.textContent = 'Model loaded — reading size…';
 
-/* camera fix */
-document.querySelector("a-scene").addEventListener("loaded", () => {
-
+    // Give Three.js one frame to build the mesh
     setTimeout(() => {
+      const mesh = model.getObject3D('mesh');
+      if (!mesh) {
+        statusEl.textContent = 'Model loaded but no mesh found';
+        return;
+      }
 
-        const video = document.querySelector("video");
+      // Temporarily reset scale to 1 to measure raw size
+      mesh.scale.set(1, 1, 1);
+      const box  = new THREE.Box3().setFromObject(mesh);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
 
-        if(video){
+      const rawH = size.y;
+      const rawW = Math.max(size.x, size.z);
+      const rawSize = Math.max(rawH, rawW);
 
-            video.setAttribute("autoplay","");
-            video.setAttribute("muted","");
-            video.setAttribute("playsinline","");
+      // Auto-calculate ideal scale
+      const autoScale = TARGET_HEIGHT / rawSize;
 
-            video.style.position = "fixed";
-            video.style.top = "0";
-            video.style.left = "0";
-            video.style.width = "100%";
-            video.style.height = "100%";
-            video.style.objectFit = "cover";
-            video.style.zIndex = "1";
+      // Center the model on the marker origin (remove mesh offset)
+      const offsetY = -center.y * autoScale;
 
-            status.innerHTML = "Camera Ready. Scan Marker.";
+      statusEl.innerHTML =
+        `Raw size: ${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)}<br>` +
+        `Auto scale: ${autoScale.toFixed(4)} | Y offset: ${offsetY.toFixed(3)}<br>` +
+        `Scan the marker!`;
 
-        } else {
-            status.innerHTML = "Camera Failed. Use HTTPS.";
-        }
+      // Apply
+      model.setAttribute('scale', `${autoScale} ${autoScale} ${autoScale}`);
+      model.setAttribute('position', `0 ${offsetY} 0`);
 
-    },1500);
+      // Sync sliders
+      document.getElementById('sl-scale').value = autoScale;
+      document.getElementById('lbl-scale').textContent = autoScale.toFixed(4);
+      document.getElementById('sl-y').value = offsetY;
+      document.getElementById('lbl-y').textContent = offsetY.toFixed(3);
 
-});
+      console.log('Raw model size:', size);
+      console.log('Auto scale applied:', autoScale);
+      console.log('Y offset applied:', offsetY);
+    }, 100);
+  });
+
+  model.addEventListener('model-error', (e) => {
+    statusEl.textContent = '❌ Model error: ' + JSON.stringify(e.detail);
+    console.error(e.detail);
+  });
+
+  // ── Live sliders ──────────────────────────────────────────────
+  function bindSlider(sliderId, labelId, applyFn) {
+    const sl = document.getElementById(sliderId);
+    const lb = document.getElementById(labelId);
+    sl.addEventListener('input', () => {
+      lb.textContent = parseFloat(sl.value).toFixed(3);
+      applyFn(parseFloat(sl.value));
+    });
+  }
+
+  bindSlider('sl-scale', 'lbl-scale', v => {
+    model.setAttribute('scale', `${v} ${v} ${v}`);
+  });
+  bindSlider('sl-y', 'lbl-y', v => {
+    const pos = model.getAttribute('position');
+    model.setAttribute('position', `${pos.x} ${v} ${pos.z}`);
+  });
+  bindSlider('sl-rx', 'lbl-rx', v => {
+    const rot = model.getAttribute('rotation');
+    model.setAttribute('rotation', `${v} ${rot.y} ${rot.z}`);
+  });
+
+  function logValues() {
+    const s = model.getAttribute('scale');
+    const p = model.getAttribute('position');
+    const r = model.getAttribute('rotation');
+    const msg = `scale="${s.x} ${s.y} ${s.z}" position="${p.x} ${p.y} ${p.z}" rotation="${r.x} ${r.y} ${r.z}"`;
+    console.log('Final values:', msg);
+    statusEl.textContent = msg;
+  }
+
+  // ── Marker events ─────────────────────────────────────────────
+  document.querySelector('[mindar-image-target]').addEventListener('targetFound', () => {
+    statusEl.textContent = '🔱 Shiva Appeared!';
+  });
+  document.querySelector('[mindar-image-target]').addEventListener('targetLost', () => {
+    statusEl.textContent = 'Scan the marker…';
+  });
+
+  // ── Camera fix ────────────────────────────────────────────────
+  document.querySelector('a-scene').addEventListener('loaded', () => {
+    setTimeout(() => {
+      const video = document.querySelector('video');
+      if (video) {
+        video.setAttribute('autoplay', '');
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
+        video.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100%!important;object-fit:cover!important;z-index:1!important;';
+      }
+    }, 1000);
+  });
 </script>
-
 </body>
 </html>
