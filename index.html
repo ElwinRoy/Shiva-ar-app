@@ -5,166 +5,242 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Shiva AR Experience</title>
 
-  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-
-  <!-- MindAR Image Tracking -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-      font-family: 'Segoe UI', Arial, sans-serif;
-    }
-
-    /* Camera video feed — must sit BEHIND the AR canvas */
     video {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      object-fit: cover !important;
-      z-index: 1 !important;
+      position: fixed !important; top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important;
+      object-fit: cover !important; z-index: 1 !important;
     }
-
-    /* AR canvas — transparent, sits ON TOP of video */
     canvas.a-canvas {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      z-index: 2 !important;
+      position: fixed !important; top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important; z-index: 2 !important;
     }
-
-    /* Status pill */
     #status {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9999;
-      background: rgba(0, 0, 0, 0.75);
-      color: #f4a800;
-      padding: 10px 24px;
-      border-radius: 30px;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      border: 1px solid rgba(244, 168, 0, 0.3);
-      transition: opacity 0.5s ease;
-      pointer-events: none;
-      white-space: nowrap;
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 9999; background: rgba(0,0,0,0.75); color: #f4a800;
+      padding: 10px 24px; border-radius: 30px; font-size: 14px; font-weight: 600;
+      backdrop-filter: blur(6px); border: 1px solid rgba(244,168,0,0.3);
+      transition: opacity 0.5s ease; pointer-events: none; white-space: nowrap;
     }
-
-    #status.hidden {
-      opacity: 0;
-    }
+    #status.hidden { opacity: 0; }
   </style>
 </head>
-
 <body>
 
-  <div id="status">🙏 Starting Camera...</div>
+<div id="status">🙏 Starting Camera...</div>
 
-  <a-scene
-    mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
-    color-space="sRGB"
-    renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false"
-  >
+<a-scene
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
+  <a-assets timeout="60000">
+    <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
+  </a-assets>
 
-    <!-- Preload the 3D model -->
-    <a-assets timeout="60000">
-      <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
-    </a-assets>
+  <!-- Lights -->
+  <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
+  <a-light type="directional" color="#ffffff" intensity="3" position="0 3 2"></a-light>
+  <a-light type="directional" color="#ffe0b0" intensity="1.5" position="-2 1 -1"></a-light>
 
-    <!-- Lighting -->
-    <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
-    <a-light type="directional" color="#ffffff" intensity="3" position="0 3 2"></a-light>
-    <a-light type="directional" color="#ffe0b0" intensity="1.5" position="-2 1 -1"></a-light>
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Camera -->
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-entity mindar-image-target="targetIndex: 0">
 
-    <!-- Image Target (marker) -->
-    <a-entity mindar-image-target="targetIndex: 0">
+    <!-- All content is inside this wrapper which tips everything upright -->
+    <a-entity position="0 0 0.15" rotation="90 0 0">
 
-      <!-- Wrapper: tips model upright from card surface -->
-      <a-entity position="0 0 0.15" rotation="90 0 0">
-        <!-- Shiva Model: rotation 0 270 0 = faces camera (proven working) -->
-        <a-gltf-model
-          id="shiva-model"
-          src="#shiva"
-          position="0 0 0"
-          rotation="0 270 0"
-          scale="0.5 0.5 0.5"
-        ></a-gltf-model>
+      <!-- ═══════════════════════════════════════════
+           DIVINE FIRE RING SYSTEM — behind the model
+           ═══════════════════════════════════════════ -->
+
+      <!-- Outer glow ring — large, slow spin -->
+      <a-torus
+        id="ring-outer"
+        position="0 0.35 -0.05"
+        rotation="0 0 0"
+        radius="0.72"
+        radius-tubular="0.018"
+        segments-tubular="80"
+        color="#ff6600"
+        material="color:#ff6600; emissive:#ff4400; emissiveIntensity:2.5; transparent:true; opacity:0.85;"
+      >
+        <a-animation attribute="rotation" from="0 0 0" to="0 0 360" dur="6000" easing="linear" repeat="indefinite"></a-animation>
+      </a-torus>
+
+      <!-- Middle ring — opposite spin, golden -->
+      <a-torus
+        id="ring-mid"
+        position="0 0.35 -0.04"
+        rotation="0 0 45"
+        radius="0.62"
+        radius-tubular="0.022"
+        segments-tubular="80"
+        color="#f4a800"
+        material="color:#f4a800; emissive:#ffcc00; emissiveIntensity:3; transparent:true; opacity:0.9;"
+      >
+        <a-animation attribute="rotation" from="0 0 45" to="0 0 -315" dur="4000" easing="linear" repeat="indefinite"></a-animation>
+      </a-torus>
+
+      <!-- Inner ring — fast spin, bright white-gold -->
+      <a-torus
+        id="ring-inner"
+        position="0 0.35 -0.03"
+        rotation="0 0 0"
+        radius="0.50"
+        radius-tubular="0.014"
+        segments-tubular="80"
+        color="#ffe066"
+        material="color:#ffe066; emissive:#ffffff; emissiveIntensity:2; transparent:true; opacity:0.75;"
+      >
+        <a-animation attribute="rotation" from="0 0 0" to="0 0 360" dur="2500" easing="linear" repeat="indefinite"></a-animation>
+      </a-torus>
+
+      <!-- Flame particles — 8 orbs orbiting around the ring -->
+      <a-entity position="0 0.35 -0.02">
+        <!-- Each orb sits at a different angle on a circle, orbits slowly -->
+
+        <a-entity
+          animation="property: rotation; from: 0 0 0; to: 0 0 360; dur: 5000; easing: linear; loop: true;">
+          <a-sphere position="0.72 0 0" radius="0.045"
+            material="color:#ff8800; emissive:#ff5500; emissiveIntensity:3; transparent:true; opacity:0.9;">
+          </a-sphere>
+        </a-entity>
+
+        <a-entity
+          animation="property: rotation; from: 45 0 0; to: 405 0 0; dur: 5000; easing: linear; loop: true;">
+          <a-sphere position="0 0.72 0" radius="0.04"
+            material="color:#ffcc00; emissive:#ffaa00; emissiveIntensity:3; transparent:true; opacity:0.85;">
+          </a-sphere>
+        </a-entity>
+
+        <a-entity
+          animation="property: rotation; from: 90 0 0; to: 450 0 0; dur: 5000; easing: linear; loop: true;">
+          <a-sphere position="0.72 0 0" radius="0.035"
+            material="color:#ff6600; emissive:#ff3300; emissiveIntensity:3.5; transparent:true; opacity:0.9;">
+          </a-sphere>
+        </a-entity>
+
+        <a-entity
+          animation="property: rotation; from: 135 0 0; to: 495 0 0; dur: 5000; easing: linear; loop: true;">
+          <a-sphere position="0 0.72 0" radius="0.045"
+            material="color:#ffffff; emissive:#ffffaa; emissiveIntensity:2; transparent:true; opacity:0.7;">
+          </a-sphere>
+        </a-entity>
+
+        <a-entity
+          animation="property: rotation; from: 180 0 0; to: 540 0 0; dur: 5000; easing: linear; loop: true;">
+          <a-sphere position="0.72 0 0" radius="0.04"
+            material="color:#ff9900; emissive:#ff7700; emissiveIntensity:3; transparent:true; opacity:0.9;">
+          </a-sphere>
+        </a-entity>
+
+        <a-entity
+          animation="property: rotation; from: 225 0 0; to: 585 0 0; dur: 5000; easing: linear; loop: true;">
+          <a-sphere position="0 0.72 0" radius="0.03"
+            material="color:#ffdd00; emissive:#ffbb00; emissiveIntensity:3; transparent:true; opacity:0.8;">
+          </a-sphere>
+        </a-entity>
+
+        <a-entity
+          animation="property: rotation; from: 270 0 0; to: 630 0 0; dur: 5000; easing: linear; loop: true;">
+          <a-sphere position="0.72 0 0" radius="0.05"
+            material="color:#ff5500; emissive:#ff2200; emissiveIntensity:4; transparent:true; opacity:0.95;">
+          </a-sphere>
+        </a-entity>
+
+        <a-entity
+          animation="property: rotation; from: 315 0 0; to: 675 0 0; dur: 5000; easing: linear; loop: true;">
+          <a-sphere position="0 0.72 0" radius="0.038"
+            material="color:#ffe066; emissive:#ffffff; emissiveIntensity:2; transparent:true; opacity:0.75;">
+          </a-sphere>
+        </a-entity>
       </a-entity>
+
+      <!-- Pulsing glow disc behind everything — the deep orange aura -->
+      <a-circle
+        id="aura-disc"
+        position="0 0.35 -0.1"
+        rotation="0 0 0"
+        radius="0.78"
+        material="color:#ff4400; emissive:#ff2200; emissiveIntensity:1.2; transparent:true; opacity:0.18; side:double;"
+      >
+        <a-animation attribute="material.opacity" from="0.10" to="0.28" dur="1200" direction="alternate" repeat="indefinite" easing="easeInOutSine"></a-animation>
+        <a-animation attribute="material.emissiveIntensity" from="0.8" to="2.0" dur="1200" direction="alternate" repeat="indefinite" easing="easeInOutSine"></a-animation>
+      </a-circle>
+
+      <!-- Secondary golden aura disc -->
+      <a-circle
+        position="0 0.35 -0.08"
+        radius="0.60"
+        material="color:#ffaa00; emissive:#ffcc00; emissiveIntensity:1.5; transparent:true; opacity:0.12; side:double;"
+      >
+        <a-animation attribute="material.opacity" from="0.08" to="0.22" dur="900" direction="alternate" repeat="indefinite" easing="easeInOutSine"></a-animation>
+      </a-circle>
+
+      <!-- ═══════════════════════════════════════════
+           THE SHIVA MODEL — on top of everything
+           ═══════════════════════════════════════════ -->
+      <a-gltf-model
+        id="shiva-model"
+        src="#shiva"
+        position="0 0 0"
+        rotation="0 270 0"
+        scale="0.5 0.5 0.5"
+      ></a-gltf-model>
 
     </a-entity>
 
-  </a-scene>
+  </a-entity>
 
-  <script>
-    const statusEl = document.getElementById("status");
-    const scene    = document.querySelector("a-scene");
-    const modelEl  = document.getElementById("shiva-model");
-    const targetEl = document.querySelector("[mindar-image-target]");
+</a-scene>
 
-    function showStatus(text) {
-      statusEl.textContent = text;
-      statusEl.classList.remove("hidden");
-    }
+<script>
+  const statusEl = document.getElementById("status");
+  const scene    = document.querySelector("a-scene");
+  const modelEl  = document.getElementById("shiva-model");
+  const targetEl = document.querySelector("[mindar-image-target]");
 
-    // Model loaded
-    if (modelEl) {
-      modelEl.addEventListener("model-loaded", () => {
-        showStatus("✅ Model loaded — scan the marker!");
-        console.log("✅ GLB model loaded");
-      });
-      modelEl.addEventListener("model-error", (e) => {
-        showStatus("❌ Model failed to load");
-        console.error("Model error:", e);
-      });
-    }
+  function showStatus(text) {
+    statusEl.textContent = text;
+    statusEl.classList.remove("hidden");
+  }
 
-    // Target found / lost
-    if (targetEl) {
-      targetEl.addEventListener("targetFound", () => {
-        showStatus("🙏 Om Namah Shivaya!");
-        setTimeout(() => statusEl.classList.add("hidden"), 3000);
-      });
-      targetEl.addEventListener("targetLost", () => {
-        showStatus("🔍 Point camera at the marker...");
-      });
-    }
+  if (modelEl) {
+    modelEl.addEventListener("model-loaded", () => {
+      showStatus("✅ Model loaded — scan the marker!");
+    });
+    modelEl.addEventListener("model-error", () => {
+      showStatus("❌ Model failed to load");
+    });
+  }
 
-    // AR ready / error
-    if (scene) {
-      scene.addEventListener("arReady", () => {
-        showStatus("📷 Camera ready — scan the marker!");
-        console.log("✅ AR ready, camera active");
-      });
-      scene.addEventListener("arError", (e) => {
-        showStatus("❌ Camera failed — allow permission & use HTTPS");
-        console.error("AR Error:", e);
-      });
-    }
-  </script>
+  if (targetEl) {
+    targetEl.addEventListener("targetFound", () => {
+      showStatus("🙏 Om Namah Shivaya!");
+      setTimeout(() => statusEl.classList.add("hidden"), 3000);
+    });
+    targetEl.addEventListener("targetLost", () => {
+      showStatus("🔍 Point camera at the marker...");
+    });
+  }
 
+  if (scene) {
+    scene.addEventListener("arReady", () => {
+      showStatus("📷 Camera ready — scan the marker!");
+    });
+    scene.addEventListener("arError", () => {
+      showStatus("❌ Camera failed — allow permission & use HTTPS");
+    });
+  }
+</script>
 </body>
 </html>
