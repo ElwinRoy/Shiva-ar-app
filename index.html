@@ -87,30 +87,42 @@
   const statusEl = document.getElementById('status');
   const modelEl  = document.getElementById('model');
 
-  // ── The ONLY camera fix — runs after MindAR creates the video element ──
-  // MindAR renders the camera into a <video> and a 2D canvas overlay.
-  // We just need to make sure that canvas is BEHIND the WebGL canvas.
-  function fixLayers() {
-    // MindAR's 2D overlay canvas (used for UI scanning frame etc.)
-    const canvases = document.querySelectorAll('canvas');
+  // ── Watch DOM and force correct z-order the moment elements appear ──
+  // MindAR creates: <video> (camera), <canvas> (its 2D UI overlay), 
+  // and A-Frame creates: <canvas> (WebGL/Three.js)
+  // We need: video(z:1) → MindAR 2D canvas(z:2) → WebGL canvas(z:3)
+  const observer = new MutationObserver(() => {
     const videos   = document.querySelectorAll('video');
+    const canvases = document.querySelectorAll('canvas');
 
     videos.forEach(v => {
-      v.style.cssText = 'position:fixed!important;top:0!important;left:0!important;' +
-                        'width:100%!important;height:100%!important;' +
-                        'object-fit:cover!important;z-index:0!important;';
+      v.style.position   = 'fixed';
+      v.style.top        = '0';
+      v.style.left       = '0';
+      v.style.width      = '100%';
+      v.style.height     = '100%';
+      v.style.objectFit  = 'cover';
+      v.style.zIndex     = '1';
     });
 
-    // The WebGL canvas (Three.js) must be on top
-    // MindAR adds its own 2D canvas for UI — keep it below WebGL
-    canvases.forEach(c => {
-      const isWebGL = c.getContext ? !!c.getContext('webgl2') || !!c.getContext('webgl') : false;
-      if (isWebGL) {
-        c.style.cssText = 'position:fixed!important;top:0!important;left:0!important;' +
-                          'width:100%!important;height:100%!important;z-index:2!important;';
-      }
+    // A-Frame's WebGL canvas is always the LAST canvas added to the scene
+    // MindAR adds its 2D overlay canvas first, then A-Frame adds its WebGL canvas
+    canvases.forEach((c, i) => {
+      c.style.position = 'fixed';
+      c.style.top      = '0';
+      c.style.left     = '0';
+      c.style.width    = '100%';
+      c.style.height   = '100%';
+      // Give each canvas a higher z than the previous
+      // The WebGL canvas (last one) gets the highest z
+      c.style.zIndex   = String(2 + i);
     });
-  }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Stop observing after 5s (everything should be set up by then)
+  setTimeout(() => observer.disconnect(), 5000);
 
   // ── Auto-fit component ─────────────────────────────────────
   AFRAME.registerComponent('auto-fit', {
@@ -154,9 +166,6 @@
         document.getElementById('lbl-y').textContent = offsetY.toFixed(2);
 
         statusEl.textContent = 'Point camera at marker 🔱';
-
-        // Fix layers after model is confirmed working
-        fixLayers();
       });
 
       this.el.addEventListener('model-error', e => {
@@ -167,12 +176,6 @@
   });
 
   modelEl.setAttribute('auto-fit', '');
-
-  document.querySelector('a-scene').addEventListener('loaded', () => {
-    // Also try fixing layers when scene is ready
-    setTimeout(fixLayers, 1500);
-    setTimeout(fixLayers, 3000);
-  });
 
   // ── Sliders ────────────────────────────────────────────────
   function bindSlider(id, lblId, fn) {
