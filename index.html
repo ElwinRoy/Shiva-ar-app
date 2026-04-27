@@ -7,11 +7,12 @@
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <!-- GPU particle system -->
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-particle-system-component@1.2.0/dist/aframe-particle-system-component.min.js"></script>
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; }
-
     video {
       position: fixed !important; top: 0 !important; left: 0 !important;
       width: 100vw !important; height: 100vh !important;
@@ -46,7 +47,6 @@
     <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
   </a-assets>
 
-  <!-- Lights -->
   <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
   <a-light type="directional" color="#ffffff" intensity="3" position="0 3 2"></a-light>
   <a-light type="directional" color="#ffe0b0" intensity="1.5" position="-2 1 -1"></a-light>
@@ -54,151 +54,61 @@
   <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
   <a-entity mindar-image-target="targetIndex: 0">
-
-    <!-- All content is inside this wrapper which tips everything upright -->
     <a-entity position="0 0 0.15" rotation="90 0 0">
 
-      <!-- ═══════════════════════════════════════════
-           DIVINE FIRE RING SYSTEM — behind the model
-           ═══════════════════════════════════════════ -->
+      <!-- ── DIVINE FIRE RING (drawn via Three.js shader, not primitives) ── -->
+      <a-entity id="fire-ring-anchor" position="0 0.38 -0.06"></a-entity>
 
-      <!-- Outer glow ring — large, slow spin -->
-      <a-torus
-        id="ring-outer"
-        position="0 0.35 -0.05"
-        rotation="0 0 0"
-        radius="0.72"
-        radius-tubular="0.018"
-        segments-tubular="80"
-        color="#ff6600"
-        material="color:#ff6600; emissive:#ff4400; emissiveIntensity:2.5; transparent:true; opacity:0.85;"
-      >
-        <a-animation attribute="rotation" from="0 0 0" to="0 0 360" dur="6000" easing="linear" repeat="indefinite"></a-animation>
-      </a-torus>
+      <!-- ── GPU PARTICLES: rising sparks/embers around the ring ── -->
+      <a-entity
+        position="0 0.1 -0.05"
+        particle-system="
+          preset: default;
+          particleCount: 180;
+          color: #ff6600, #ffcc00, #ffffff;
+          size: 0.012, 0.004;
+          opacity: 0.9, 0;
+          velocityValue: 0 0.18 0;
+          velocitySpread: 0.6 0.05 0.6;
+          positionSpread: 0.65 0.02 0.0;
+          accelerationValue: 0 0.04 0;
+          accelerationSpread: 0.1 0.02 0.1;
+          maxAge: 1.8;
+          maxAgeSpread: 0.6;
+          blending: 2;
+          direction: 1;
+          randomize: true;
+        "
+      ></a-entity>
 
-      <!-- Middle ring — opposite spin, golden -->
-      <a-torus
-        id="ring-mid"
-        position="0 0.35 -0.04"
-        rotation="0 0 45"
-        radius="0.62"
-        radius-tubular="0.022"
-        segments-tubular="80"
-        color="#f4a800"
-        material="color:#f4a800; emissive:#ffcc00; emissiveIntensity:3; transparent:true; opacity:0.9;"
-      >
-        <a-animation attribute="rotation" from="0 0 45" to="0 0 -315" dur="4000" easing="linear" repeat="indefinite"></a-animation>
-      </a-torus>
+      <!-- ── GPU PARTICLES: golden dust swirling at base ── -->
+      <a-entity
+        position="0 0.05 -0.05"
+        particle-system="
+          preset: dust;
+          particleCount: 80;
+          color: #ffaa00, #ff6600;
+          size: 0.018, 0.006;
+          opacity: 0.7, 0;
+          velocityValue: 0 0.05 0;
+          velocitySpread: 0.5 0.02 0.5;
+          positionSpread: 0.55 0.01 0.0;
+          maxAge: 2.5;
+          blending: 2;
+          randomize: true;
+        "
+      ></a-entity>
 
-      <!-- Inner ring — fast spin, bright white-gold -->
-      <a-torus
-        id="ring-inner"
-        position="0 0.35 -0.03"
-        rotation="0 0 0"
-        radius="0.50"
-        radius-tubular="0.014"
-        segments-tubular="80"
-        color="#ffe066"
-        material="color:#ffe066; emissive:#ffffff; emissiveIntensity:2; transparent:true; opacity:0.75;"
-      >
-        <a-animation attribute="rotation" from="0 0 0" to="0 0 360" dur="2500" easing="linear" repeat="indefinite"></a-animation>
-      </a-torus>
-
-      <!-- Flame particles — 8 orbs orbiting around the ring -->
-      <a-entity position="0 0.35 -0.02">
-        <!-- Each orb sits at a different angle on a circle, orbits slowly -->
-
-        <a-entity
-          animation="property: rotation; from: 0 0 0; to: 0 0 360; dur: 5000; easing: linear; loop: true;">
-          <a-sphere position="0.72 0 0" radius="0.045"
-            material="color:#ff8800; emissive:#ff5500; emissiveIntensity:3; transparent:true; opacity:0.9;">
-          </a-sphere>
-        </a-entity>
-
-        <a-entity
-          animation="property: rotation; from: 45 0 0; to: 405 0 0; dur: 5000; easing: linear; loop: true;">
-          <a-sphere position="0 0.72 0" radius="0.04"
-            material="color:#ffcc00; emissive:#ffaa00; emissiveIntensity:3; transparent:true; opacity:0.85;">
-          </a-sphere>
-        </a-entity>
-
-        <a-entity
-          animation="property: rotation; from: 90 0 0; to: 450 0 0; dur: 5000; easing: linear; loop: true;">
-          <a-sphere position="0.72 0 0" radius="0.035"
-            material="color:#ff6600; emissive:#ff3300; emissiveIntensity:3.5; transparent:true; opacity:0.9;">
-          </a-sphere>
-        </a-entity>
-
-        <a-entity
-          animation="property: rotation; from: 135 0 0; to: 495 0 0; dur: 5000; easing: linear; loop: true;">
-          <a-sphere position="0 0.72 0" radius="0.045"
-            material="color:#ffffff; emissive:#ffffaa; emissiveIntensity:2; transparent:true; opacity:0.7;">
-          </a-sphere>
-        </a-entity>
-
-        <a-entity
-          animation="property: rotation; from: 180 0 0; to: 540 0 0; dur: 5000; easing: linear; loop: true;">
-          <a-sphere position="0.72 0 0" radius="0.04"
-            material="color:#ff9900; emissive:#ff7700; emissiveIntensity:3; transparent:true; opacity:0.9;">
-          </a-sphere>
-        </a-entity>
-
-        <a-entity
-          animation="property: rotation; from: 225 0 0; to: 585 0 0; dur: 5000; easing: linear; loop: true;">
-          <a-sphere position="0 0.72 0" radius="0.03"
-            material="color:#ffdd00; emissive:#ffbb00; emissiveIntensity:3; transparent:true; opacity:0.8;">
-          </a-sphere>
-        </a-entity>
-
-        <a-entity
-          animation="property: rotation; from: 270 0 0; to: 630 0 0; dur: 5000; easing: linear; loop: true;">
-          <a-sphere position="0.72 0 0" radius="0.05"
-            material="color:#ff5500; emissive:#ff2200; emissiveIntensity:4; transparent:true; opacity:0.95;">
-          </a-sphere>
-        </a-entity>
-
-        <a-entity
-          animation="property: rotation; from: 315 0 0; to: 675 0 0; dur: 5000; easing: linear; loop: true;">
-          <a-sphere position="0 0.72 0" radius="0.038"
-            material="color:#ffe066; emissive:#ffffff; emissiveIntensity:2; transparent:true; opacity:0.75;">
-          </a-sphere>
-        </a-entity>
-      </a-entity>
-
-      <!-- Pulsing glow disc behind everything — the deep orange aura -->
-      <a-circle
-        id="aura-disc"
-        position="0 0.35 -0.1"
-        rotation="0 0 0"
-        radius="0.78"
-        material="color:#ff4400; emissive:#ff2200; emissiveIntensity:1.2; transparent:true; opacity:0.18; side:double;"
-      >
-        <a-animation attribute="material.opacity" from="0.10" to="0.28" dur="1200" direction="alternate" repeat="indefinite" easing="easeInOutSine"></a-animation>
-        <a-animation attribute="material.emissiveIntensity" from="0.8" to="2.0" dur="1200" direction="alternate" repeat="indefinite" easing="easeInOutSine"></a-animation>
-      </a-circle>
-
-      <!-- Secondary golden aura disc -->
-      <a-circle
-        position="0 0.35 -0.08"
-        radius="0.60"
-        material="color:#ffaa00; emissive:#ffcc00; emissiveIntensity:1.5; transparent:true; opacity:0.12; side:double;"
-      >
-        <a-animation attribute="material.opacity" from="0.08" to="0.22" dur="900" direction="alternate" repeat="indefinite" easing="easeInOutSine"></a-animation>
-      </a-circle>
-
-      <!-- ═══════════════════════════════════════════
-           THE SHIVA MODEL — on top of everything
-           ═══════════════════════════════════════════ -->
+      <!-- ── THE SHIVA MODEL — always in front ── -->
       <a-gltf-model
         id="shiva-model"
         src="#shiva"
-        position="0 0 0"
+        position="0 0 0.01"
         rotation="0 270 0"
         scale="0.5 0.5 0.5"
       ></a-gltf-model>
 
     </a-entity>
-
   </a-entity>
 
 </a-scene>
@@ -214,32 +124,93 @@
     statusEl.classList.remove("hidden");
   }
 
-  if (modelEl) {
-    modelEl.addEventListener("model-loaded", () => {
-      showStatus("✅ Model loaded — scan the marker!");
-    });
-    modelEl.addEventListener("model-error", () => {
-      showStatus("❌ Model failed to load");
-    });
-  }
+  // ── Build the fire ring using Three.js directly ──────────────
+  // This is FAR better than A-Frame primitives — uses a proper
+  // RingGeometry with a custom shader that fades from orange→gold→transparent
+  scene.addEventListener("loaded", () => {
 
+    const ringAnchor = document.getElementById("fire-ring-anchor");
+
+    // Custom glowing ring shader
+    const ringMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time:       { value: 0 },
+        colorInner: { value: new THREE.Color(0xffffff) },
+        colorOuter: { value: new THREE.Color(0xff4400) },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 colorInner;
+        uniform vec3 colorOuter;
+        varying vec2 vUv;
+        void main() {
+          // vUv.y goes 0→1 from inner to outer edge of the ring
+          float t = vUv.y;
+          // Pulsing brightness
+          float pulse = 0.75 + 0.25 * sin(time * 3.0 + vUv.x * 12.566);
+          // Flickering flames along the ring circumference
+          float flame = 0.5 + 0.5 * sin(time * 5.0 + vUv.x * 25.132);
+          // Color: white-yellow inside → orange-red outside
+          vec3 col = mix(colorInner, colorOuter, t);
+          col *= pulse * (0.8 + 0.4 * flame);
+          // Opacity: bright at inner edge, fades to 0 at outer
+          float alpha = (1.0 - t) * (0.85 + 0.15 * pulse);
+          gl_FragColor = vec4(col, alpha);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    // Ring geometry: innerRadius, outerRadius, thetaSegments
+    const ringGeo = new THREE.RingGeometry(0.52, 0.78, 80, 4);
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringAnchor.object3D.add(ringMesh);
+
+    // Second thinner ring rotated slightly for depth
+    const ringMat2 = ringMat.clone();
+    ringMat2.uniforms = {
+      time:       { value: 0 },
+      colorInner: { value: new THREE.Color(0xffdd66) },
+      colorOuter: { value: new THREE.Color(0xff8800) },
+    };
+    const ringGeo2 = new THREE.RingGeometry(0.55, 0.74, 80, 4);
+    const ringMesh2 = new THREE.Mesh(ringGeo2, ringMat2);
+    ringMesh2.rotation.z = Math.PI / 8; // slight twist
+    ringAnchor.object3D.add(ringMesh2);
+
+    // Animate shader time uniform every frame
+    scene.addEventListener("tick", (e) => {
+      const t = e.detail.time * 0.001;
+      ringMat.uniforms.time.value  = t;
+      ringMat2.uniforms.time.value = t;
+    });
+  });
+
+  // ── Marker events ────────────────────────────────────────────
+  if (modelEl) {
+    modelEl.addEventListener("model-loaded", () => showStatus("✅ Model loaded — scan the marker!"));
+    modelEl.addEventListener("model-error",  () => showStatus("❌ Model failed to load"));
+  }
   if (targetEl) {
     targetEl.addEventListener("targetFound", () => {
       showStatus("🙏 Om Namah Shivaya!");
       setTimeout(() => statusEl.classList.add("hidden"), 3000);
     });
-    targetEl.addEventListener("targetLost", () => {
-      showStatus("🔍 Point camera at the marker...");
-    });
+    targetEl.addEventListener("targetLost", () => showStatus("🔍 Point camera at the marker..."));
   }
-
   if (scene) {
-    scene.addEventListener("arReady", () => {
-      showStatus("📷 Camera ready — scan the marker!");
-    });
-    scene.addEventListener("arError", () => {
-      showStatus("❌ Camera failed — allow permission & use HTTPS");
-    });
+    scene.addEventListener("arReady", () => showStatus("📷 Camera ready — scan the marker!"));
+    scene.addEventListener("arError", () => showStatus("❌ Camera failed — allow permission & use HTTPS"));
   }
 </script>
 </body>
