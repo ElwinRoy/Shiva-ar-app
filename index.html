@@ -10,40 +10,25 @@
 
 <style>
   *, html, body { margin:0; padding:0; box-sizing:border-box; }
-  html, body { width:100%; height:100%; overflow:hidden; background:#000; font-family: Arial, sans-serif; }
-
+  html, body { width:100%; height:100%; overflow:hidden; background:#000; }
   a-scene { position:fixed; top:0; left:0; width:100%; height:100%; }
-
-  video {
-    position:fixed !important; top:0 !important; left:0 !important;
-    width:100% !important; height:100% !important;
-    object-fit:cover !important; z-index:1 !important;
-  }
-  canvas {
-    position:fixed !important; top:0 !important; left:0 !important;
-    width:100% !important; height:100% !important; z-index:2 !important;
-  }
 
   #status {
     position:fixed; top:16px; left:50%; transform:translateX(-50%);
     z-index:9999; background:rgba(0,0,0,0.8); color:#f4a800;
     padding:10px 20px; border-radius:30px; font-size:13px;
-    letter-spacing:1px; white-space:nowrap; text-align:center;
-    max-width:90vw; white-space:normal;
+    text-align:center; max-width:90vw;
   }
 
-  /* Slider controls to tune scale/position live */
   #controls {
     position:fixed; bottom:0; left:0; right:0; z-index:9999;
     background:rgba(0,0,0,0.85); padding:12px 16px;
     display:flex; flex-direction:column; gap:8px;
   }
-  .ctrl-row {
-    display:flex; align-items:center; gap:10px;
-  }
+  .ctrl-row { display:flex; align-items:center; gap:10px; }
   .ctrl-row label { color:#f4a800; font-size:11px; width:80px; flex-shrink:0; }
   .ctrl-row input[type=range] { flex:1; accent-color:#f4a800; }
-  .ctrl-row span { color:#fff; font-size:11px; width:48px; text-align:right; flex-shrink:0; }
+  .ctrl-row span { color:#fff; font-size:11px; width:60px; text-align:right; flex-shrink:0; }
   #controls button {
     background:#f4a800; border:none; border-radius:20px;
     padding:8px; color:#000; font-weight:700; font-size:12px; cursor:pointer;
@@ -52,64 +37,63 @@
 </head>
 <body>
 
-<div id="status">Loading model…</div>
+<div id="status">Loading…</div>
 
-<!-- Live tuning controls -->
 <div id="controls">
   <div class="ctrl-row">
     <label>Scale</label>
-    <input type="range" id="sl-scale" min="0.001" max="2" step="0.001" value="0.05">
-    <span id="lbl-scale">0.05</span>
+    <input type="range" id="sl-scale" min="0.01" max="3" step="0.01" value="0.8">
+    <span id="lbl-scale">0.80</span>
   </div>
   <div class="ctrl-row">
-    <label>Y position</label>
-    <input type="range" id="sl-y" min="-1" max="2" step="0.01" value="0">
-    <span id="lbl-y">0</span>
+    <label>Y offset</label>
+    <input type="range" id="sl-y" min="-2" max="3" step="0.01" value="0">
+    <span id="lbl-y">0.00</span>
   </div>
   <div class="ctrl-row">
     <label>Rotation X</label>
     <input type="range" id="sl-rx" min="-180" max="180" step="1" value="0">
     <span id="lbl-rx">0</span>
   </div>
-  <button onclick="logValues()">📋 Log values to console</button>
+  <button onclick="logValues()">📋 Log values</button>
 </div>
 
 <a-scene
-  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;"
   embedded
   color-space="sRGB"
-  renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
+  renderer="colorManagement:true; physicallyCorrectLights:true;"
   vr-mode-ui="enabled:false"
   device-orientation-permission-ui="enabled:false"
 >
-  <a-assets timeout="0">
+  <a-assets timeout="30000">
     <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
   </a-assets>
 
-  <a-light type="ambient" intensity="3"></a-light>
-  <a-light type="directional" intensity="4" position="0 2 1"></a-light>
+  <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
+  <a-light type="directional" color="#ffffff" intensity="3" position="1 3 2"></a-light>
 
   <a-entity mindar-image-target="targetIndex: 0">
 
+    <!-- ✅ TEST BOX — always visible when marker is detected.
+         If you see this golden box floating on your image, the anchor is working.
+         Once model appears, you can remove this box. -->
+    <a-box id="test-box"
+      width="0.3" height="0.3" depth="0.3"
+      position="0 0.15 0"
+      color="#f4a800"
+      material="emissive:#f4a800; emissiveIntensity:1.5; opacity:0.9;">
+    </a-box>
+
+    <!-- Your 3D model -->
     <a-entity
       id="model"
       gltf-model="#shiva"
       position="0 0 0"
       rotation="0 180 0"
-      scale="0.05 0.05 0.05"
+      scale="0.8 0.8 0.8"
+      visible="true"
     ></a-entity>
-
-    <!-- Visible red sphere at origin — confirms marker is tracked -->
-    <a-sphere id="origin-dot"
-      radius="0.04" color="#ff0000"
-      position="0 0 0"
-      material="emissive:#ff0000; emissiveIntensity:2;">
-    </a-sphere>
-
-    <!-- Golden ring flat on marker -->
-    <a-torus radius="0.5" radius-tubular="0.015" rotation="90 0 0" color="#f4a800"
-             material="emissive:#f4a800; emissiveIntensity:1.5;">
-    </a-torus>
 
   </a-entity>
 
@@ -118,93 +102,73 @@
 
 <script>
   const statusEl = document.getElementById('status');
-  const model    = document.getElementById('model');
+  const model = document.getElementById('model');
 
-  // ── Auto-scale from bounding box ──────────────────────────────
-  // Target: model fits in roughly 0.8 units tall (marker is ~1 unit wide in MindAR)
-  const TARGET_HEIGHT = 0.8;
-
+  // ── Model loading ─────────────────────────────────────────────
   model.addEventListener('model-loaded', () => {
-    statusEl.textContent = 'Model loaded — reading size…';
+    const mesh = model.getObject3D('mesh');
+    if (!mesh) {
+      statusEl.textContent = '⚠️ Mesh not found after load';
+      return;
+    }
 
-    // Give Three.js one frame to build the mesh
     setTimeout(() => {
-      const mesh = model.getObject3D('mesh');
-      if (!mesh) {
-        statusEl.textContent = 'Model loaded but no mesh found';
-        return;
-      }
-
-      // Temporarily reset scale to 1 to measure raw size
       mesh.scale.set(1, 1, 1);
-      const box  = new THREE.Box3().setFromObject(mesh);
+      const box = new THREE.Box3().setFromObject(mesh);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
 
-      const rawH = size.y;
-      const rawW = Math.max(size.x, size.z);
-      const rawSize = Math.max(rawH, rawW);
+      // Target: fit model in ~0.9 units (marker ≈ 1 unit wide)
+      const TARGET = 0.9;
+      const rawMax = Math.max(size.x, size.y, size.z);
+      const autoScale = TARGET / rawMax;
+      const offsetY = -center.y * autoScale + (size.y * autoScale * 0.5);
 
-      // Auto-calculate ideal scale
-      const autoScale = TARGET_HEIGHT / rawSize;
-
-      // Center the model on the marker origin (remove mesh offset)
-      const offsetY = -center.y * autoScale;
-
-      statusEl.innerHTML =
-        `Raw size: ${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)}<br>` +
-        `Auto scale: ${autoScale.toFixed(4)} | Y offset: ${offsetY.toFixed(3)}<br>` +
-        `Scan the marker!`;
-
-      // Apply
       model.setAttribute('scale', `${autoScale} ${autoScale} ${autoScale}`);
       model.setAttribute('position', `0 ${offsetY} 0`);
 
-      // Sync sliders
       document.getElementById('sl-scale').value = autoScale;
-      document.getElementById('lbl-scale').textContent = autoScale.toFixed(4);
+      document.getElementById('lbl-scale').textContent = autoScale.toFixed(2);
       document.getElementById('sl-y').value = offsetY;
-      document.getElementById('lbl-y').textContent = offsetY.toFixed(3);
+      document.getElementById('lbl-y').textContent = offsetY.toFixed(2);
 
-      console.log('Raw model size:', size);
-      console.log('Auto scale applied:', autoScale);
-      console.log('Y offset applied:', offsetY);
-    }, 100);
+      statusEl.innerHTML = `✅ Model loaded | scale:${autoScale.toFixed(3)} y:${offsetY.toFixed(3)}<br>Scan the marker!`;
+      console.log('Model size:', size);
+      console.log('Auto scale:', autoScale, '| Y offset:', offsetY);
+    }, 200);
   });
 
   model.addEventListener('model-error', (e) => {
-    statusEl.textContent = '❌ Model error: ' + JSON.stringify(e.detail);
-    console.error(e.detail);
+    statusEl.innerHTML = '❌ GLB load failed! Check shiva.glb path.<br>' + JSON.stringify(e.detail);
+    console.error('model-error:', e.detail);
   });
 
-  // ── Live sliders ──────────────────────────────────────────────
-  function bindSlider(sliderId, labelId, applyFn) {
-    const sl = document.getElementById(sliderId);
-    const lb = document.getElementById(labelId);
+  // ── Sliders ───────────────────────────────────────────────────
+  function bindSlider(id, lblId, fn) {
+    const sl = document.getElementById(id);
+    const lb = document.getElementById(lblId);
     sl.addEventListener('input', () => {
-      lb.textContent = parseFloat(sl.value).toFixed(3);
-      applyFn(parseFloat(sl.value));
+      lb.textContent = parseFloat(sl.value).toFixed(2);
+      fn(parseFloat(sl.value));
     });
   }
 
-  bindSlider('sl-scale', 'lbl-scale', v => {
-    model.setAttribute('scale', `${v} ${v} ${v}`);
-  });
+  bindSlider('sl-scale', 'lbl-scale', v => model.setAttribute('scale', `${v} ${v} ${v}`));
   bindSlider('sl-y', 'lbl-y', v => {
-    const pos = model.getAttribute('position');
-    model.setAttribute('position', `${pos.x} ${v} ${pos.z}`);
+    const p = model.getAttribute('position');
+    model.setAttribute('position', `${p.x} ${v} ${p.z}`);
   });
   bindSlider('sl-rx', 'lbl-rx', v => {
-    const rot = model.getAttribute('rotation');
-    model.setAttribute('rotation', `${v} ${rot.y} ${rot.z}`);
+    const r = model.getAttribute('rotation');
+    model.setAttribute('rotation', `${v} ${r.y} ${r.z}`);
   });
 
   function logValues() {
     const s = model.getAttribute('scale');
     const p = model.getAttribute('position');
     const r = model.getAttribute('rotation');
-    const msg = `scale="${s.x} ${s.y} ${s.z}" position="${p.x} ${p.y} ${p.z}" rotation="${r.x} ${r.y} ${r.z}"`;
-    console.log('Final values:', msg);
+    const msg = `scale="${s.x.toFixed(3)} ${s.y.toFixed(3)} ${s.z.toFixed(3)}" position="${p.x.toFixed(3)} ${p.y.toFixed(3)} ${p.z.toFixed(3)}" rotation="${r.x} ${r.y} ${r.z}"`;
+    console.log(msg);
     statusEl.textContent = msg;
   }
 
@@ -214,19 +178,6 @@
   });
   document.querySelector('[mindar-image-target]').addEventListener('targetLost', () => {
     statusEl.textContent = 'Scan the marker…';
-  });
-
-  // ── Camera fix ────────────────────────────────────────────────
-  document.querySelector('a-scene').addEventListener('loaded', () => {
-    setTimeout(() => {
-      const video = document.querySelector('video');
-      if (video) {
-        video.setAttribute('autoplay', '');
-        video.setAttribute('muted', '');
-        video.setAttribute('playsinline', '');
-        video.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100%!important;object-fit:cover!important;z-index:1!important;';
-      }
-    }, 1000);
   });
 </script>
 </body>
