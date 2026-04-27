@@ -85,19 +85,19 @@
 
     <a-entity mindar-image-target="targetIndex: 0">
 
-      <!-- 🔵 Tech base — flat circular platform just above the marker -->
-      <!-- Rendered FIRST so it appears beneath everything -->
-      <!-- rotation="0 0 0" keeps it flat/horizontal on the marker plane -->
-      <!-- position Y is slightly above marker surface -->
-      <!-- Tune scale until it wraps nicely around Shiva's feet -->
-      <a-gltf-model
-        id="tech-model"
-        src="#tech"
-        position="0 -0.05 0"
-        rotation="0 0 0"
-        scale="0.5 0.5 0.5"
-        animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 10000; easing: linear;"
-      ></a-gltf-model>
+      <!-- 🔵 Tech base — tight around Shiva's feet, flat, slow spin -->
+      <!-- position Y=0 sits it right on the marker surface         -->
+      <!-- scale 0.07 = much smaller, just around the lower body    -->
+      <a-entity position="0 0 0.15" rotation="90 0 0">
+        <a-gltf-model
+          id="tech-model"
+          src="#tech"
+          position="0 -0.18 0"
+          rotation="0 0 0"
+          scale="0.07 0.07 0.07"
+          animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 6000; easing: linear;"
+        ></a-gltf-model>
+      </a-entity>
 
       <!-- ☀️ Sun — behind head -->
       <a-entity position="0 0 0.05" rotation="90 0 0">
