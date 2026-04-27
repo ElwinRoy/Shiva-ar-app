@@ -5,18 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Shiva AR Experience</title>
 
-  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-
-  <!-- MindAR Image Tracking -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       width: 100%;
@@ -28,20 +21,16 @@
 
     video {
       position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
+      top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important;
       object-fit: cover !important;
       z-index: 1 !important;
     }
 
     canvas.a-canvas {
       position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
+      top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important;
       z-index: 2 !important;
     }
 
@@ -66,9 +55,7 @@
       white-space: nowrap;
     }
 
-    #status.hidden {
-      opacity: 0;
-    }
+    #status.hidden { opacity: 0; }
   </style>
 </head>
 
@@ -84,36 +71,34 @@
     device-orientation-permission-ui="enabled: false"
   >
 
-    <!-- Assets -->
     <a-assets timeout="60000">
       <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
-      <a-asset-item id="fireball" src="./sun.glb"></a-asset-item>
+      <a-asset-item id="sun" src="./sun.glb"></a-asset-item>
     </a-assets>
 
-    <!-- Lighting -->
     <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
     <a-light type="directional" color="#ffffff" intensity="3" position="0 3 2"></a-light>
     <a-light type="directional" color="#ffe0b0" intensity="1.5" position="-2 1 -1"></a-light>
 
-    <!-- Camera -->
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Image Target -->
     <a-entity mindar-image-target="targetIndex: 0">
 
-      <!-- Fireball — rendered FIRST so it sits behind Shiva in scene graph -->
-      <!-- Wrapper tips it upright; inner Z offset pushes it behind the head -->
+      <!-- ☀️ Sun — behind Shiva's head -->
+      <!-- Tune scale here: try 0.008 → 0.012 → 0.02 until it looks right -->
+      <!-- Tune position Y to raise/lower behind the head -->
       <a-entity position="0 0 0.05" rotation="90 0 0">
         <a-gltf-model
-          id="fireball-model"
-          src="#fireball"
-          position="0 0 -0.08"
+          id="sun-model"
+          src="#sun"
+          position="0 0.05 -0.12"
           rotation="0 270 0"
-          scale="0.06 0.06 0.06"
+          scale="0.008 0.008 0.008"
+          animation="property: rotation; from: 0 270 0; to: 0 630 0; loop: true; dur: 8000; easing: linear;"
         ></a-gltf-model>
       </a-entity>
 
-      <!-- Shiva model — rendered AFTER fireball, appears in front -->
+      <!-- 🙏 Shiva — in front -->
       <a-entity position="0 0 0.15" rotation="90 0 0">
         <a-gltf-model
           id="shiva-model"
@@ -129,18 +114,17 @@
   </a-scene>
 
   <script>
-    const statusEl   = document.getElementById("status");
-    const scene      = document.querySelector("a-scene");
-    const modelEl    = document.getElementById("shiva-model");
-    const fireballEl = document.getElementById("fireball-model");
-    const targetEl   = document.querySelector("[mindar-image-target]");
+    const statusEl = document.getElementById("status");
+    const scene    = document.querySelector("a-scene");
+    const modelEl  = document.getElementById("shiva-model");
+    const sunEl    = document.getElementById("sun-model");
+    const targetEl = document.querySelector("[mindar-image-target]");
 
     function showStatus(text) {
       statusEl.textContent = text;
       statusEl.classList.remove("hidden");
     }
 
-    // Shiva model events
     if (modelEl) {
       modelEl.addEventListener("model-loaded", () => {
         showStatus("✅ Model loaded — scan the marker!");
@@ -152,17 +136,15 @@
       });
     }
 
-    // Fireball model events
-    if (fireballEl) {
-      fireballEl.addEventListener("model-loaded", () => {
-        console.log("✅ Fireball GLB loaded");
+    if (sunEl) {
+      sunEl.addEventListener("model-loaded", () => {
+        console.log("✅ Sun GLB loaded");
       });
-      fireballEl.addEventListener("model-error", (e) => {
-        console.error("Fireball model error:", e);
+      sunEl.addEventListener("model-error", (e) => {
+        console.error("Sun model error:", e);
       });
     }
 
-    // Target found / lost
     if (targetEl) {
       targetEl.addEventListener("targetFound", () => {
         showStatus("🙏 Om Namah Shivaya!");
@@ -173,7 +155,6 @@
       });
     }
 
-    // AR ready / error
     if (scene) {
       scene.addEventListener("arReady", () => {
         showStatus("📷 Camera ready — scan the marker!");
