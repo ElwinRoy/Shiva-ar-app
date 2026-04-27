@@ -47,13 +47,21 @@
     <span id="lbl-y">0.00</span>
   </div>
   <div class="ctrl-row">
-    <label>Rotation X</label>
-    <input type="range" id="sl-rx" min="-180" max="180" step="1" value="0">
-    <span id="lbl-rx">0</span>
+    <label>Rotation Y</label>
+    <input type="range" id="sl-ry" min="-180" max="180" step="1" value="0">
+    <span id="lbl-ry">0</span>
   </div>
   <button onclick="logValues()">📋 Log values</button>
 </div>
 
+<!--
+  KEY INSIGHT from reading MindAR source:
+  - MindAR sets video z-index to -2 (behind everything)
+  - A-Frame WebGL canvas sits on top naturally
+  - The ONLY reason camera doesn't show through = Three.js black clear color
+  - Fix: alpha:true on renderer + setClearColor(0,0) once on renderstart
+  - Do NOT use background="transparent:true" — it resets the clear color every frame
+-->
 <a-scene
   mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes;"
   embedded
@@ -61,7 +69,6 @@
   renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
   vr-mode-ui="enabled:false"
   device-orientation-permission-ui="enabled:false"
-  background="transparent: true;"
 >
   <a-assets timeout="60000">
     <a-asset-item id="shiva-model" src="./shiva.glb"></a-asset-item>
@@ -75,7 +82,7 @@
       id="model"
       gltf-model="#shiva-model"
       position="0 0 0"
-      rotation="0 180 0"
+      rotation="0 0 0"
       scale="0.5 0.5 0.5"
     ></a-entity>
   </a-entity>
@@ -88,27 +95,23 @@
   const modelEl  = document.getElementById('model');
   const sceneEl  = document.querySelector('a-scene');
 
-  // ── THE KEY FIX ───────────────────────────────────────────
-  // After scene loads, tell Three.js renderer to clear with alpha=0
-  // so the camera video behind the canvas shows through
+  // ── Transparent background fix ─────────────────────────────
+  // A-Frame's "background" component overrides setClearColor every frame.
+  // So we remove it and set alpha directly on the renderer ONCE after load.
   sceneEl.addEventListener('loaded', () => {
+    // Remove A-Frame's default background component so it stops fighting us
+    sceneEl.removeAttribute('background');
+
     const renderer = sceneEl.renderer;
-    renderer.setClearColor(new THREE.Color(0x000000), 0);
-    renderer.autoClearColor = true;
-    console.log('✅ Renderer set to transparent background');
+    renderer.setClearColor(0x000000, 0); // alpha=0 → fully transparent
+    console.log('✅ Transparent background set');
   });
 
-  // Also patch it on every render frame (A-Frame can reset it)
-  sceneEl.addEventListener('renderstart', () => {
-    const renderer = sceneEl.renderer;
-    renderer.setClearColor(new THREE.Color(0x000000), 0);
-  });
-
-  // ── Auto-fit component ─────────────────────────────────────
+  // ── Auto-fit + correct facing ──────────────────────────────
   AFRAME.registerComponent('auto-fit', {
     init: function () {
       this.el.addEventListener('model-loaded', () => {
-        statusEl.textContent = '✅ Model loaded!';
+        statusEl.textContent = '✅ Model loaded — fitting…';
 
         const obj = this.el.getObject3D('mesh');
         if (!obj) { statusEl.textContent = '⚠️ No mesh'; return; }
@@ -130,20 +133,27 @@
 
         if (isNaN(size.x) || size.x === 0) {
           statusEl.textContent = '⚠️ Using default scale';
+          // Still apply rotation fix even if scale fails
+          this.el.setAttribute('rotation', '0 0 0');
           return;
         }
 
         const TARGET    = 0.9;
         const autoScale = TARGET / Math.max(size.x, size.y, size.z);
-        const offsetY   = -center.y * autoScale + (size.y * autoScale * 0.5);
+        // Sit model base ON the marker (not below it)
+        const offsetY   = (size.y * autoScale * 0.5) - (center.y * autoScale);
 
-        this.el.setAttribute('scale', `${autoScale} ${autoScale} ${autoScale}`);
+        this.el.setAttribute('scale',    `${autoScale} ${autoScale} ${autoScale}`);
         this.el.setAttribute('position', `0 ${offsetY} 0`);
+        // rotation=0 0 0 — let the slider tune if needed
+        this.el.setAttribute('rotation', '0 0 0');
 
         document.getElementById('sl-scale').value = autoScale.toFixed(2);
         document.getElementById('lbl-scale').textContent = autoScale.toFixed(2);
         document.getElementById('sl-y').value = offsetY.toFixed(2);
         document.getElementById('lbl-y').textContent = offsetY.toFixed(2);
+        document.getElementById('sl-ry').value = '0';
+        document.getElementById('lbl-ry').textContent = '0';
 
         statusEl.textContent = 'Point camera at marker 🔱';
       });
@@ -162,19 +172,21 @@
     const sl = document.getElementById(id);
     const lb = document.getElementById(lblId);
     sl.addEventListener('input', () => {
-      lb.textContent = parseFloat(sl.value).toFixed(2);
+      lb.textContent = parseFloat(sl.value).toFixed(sl.step < 1 ? 2 : 0);
       fn(parseFloat(sl.value));
     });
   }
 
-  bindSlider('sl-scale', 'lbl-scale', v => modelEl.setAttribute('scale', `${v} ${v} ${v}`));
+  bindSlider('sl-scale', 'lbl-scale', v => {
+    modelEl.setAttribute('scale', `${v} ${v} ${v}`);
+  });
   bindSlider('sl-y', 'lbl-y', v => {
     const p = modelEl.getAttribute('position');
     modelEl.setAttribute('position', `${p.x} ${v} ${p.z}`);
   });
-  bindSlider('sl-rx', 'lbl-rx', v => {
+  bindSlider('sl-ry', 'lbl-ry', v => {
     const r = modelEl.getAttribute('rotation');
-    modelEl.setAttribute('rotation', `${v} ${r.y} ${r.z}`);
+    modelEl.setAttribute('rotation', `${r.x} ${v} ${r.z}`);
   });
 
   function logValues() {
