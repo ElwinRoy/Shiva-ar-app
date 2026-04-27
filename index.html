@@ -9,14 +9,36 @@
 <style>
   *, html, body { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; overflow:hidden; background:#000; }
-  a-scene { position:fixed; top:0; left:0; width:100%; height:100%; }
+
+  /* Camera feed sits at the very back */
+  video {
+    position:fixed !important;
+    top:0 !important; left:0 !important;
+    width:100% !important; height:100% !important;
+    object-fit:cover !important;
+    z-index:0 !important;
+  }
+
+  /* A-Frame canvas on top of video, transparent bg */
+  canvas {
+    position:fixed !important;
+    top:0 !important; left:0 !important;
+    width:100% !important; height:100% !important;
+    z-index:1 !important;
+    background:transparent !important;
+  }
+
+  a-scene {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:transparent !important;
+  }
 
   #status {
     position:fixed; top:16px; left:50%; transform:translateX(-50%);
     z-index:9999; background:rgba(0,0,0,0.75); color:#f4a800;
     padding:10px 24px; border-radius:30px; font-size:13px;
     text-align:center; max-width:92vw; line-height:1.5;
-    font-family: Arial, sans-serif;
+    font-family: Arial, sans-serif; pointer-events:none;
   }
 
   #controls {
@@ -62,7 +84,7 @@
   mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes;"
   embedded
   color-space="sRGB"
-  renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
+  renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true; antialias:true;"
   vr-mode-ui="enabled:false"
   device-orientation-permission-ui="enabled:false"
 >
@@ -90,13 +112,22 @@
   const statusEl = document.getElementById('status');
   const modelEl  = document.getElementById('model');
 
+  // ── Fix: clear the Three.js renderer background to transparent ──
+  document.querySelector('a-scene').addEventListener('loaded', () => {
+    const scene    = document.querySelector('a-scene');
+    const renderer = scene.renderer;
+    renderer.setClearColor(0x000000, 0);   // transparent clear
+    renderer.setPixelRatio(window.devicePixelRatio);
+  });
+
+  // ── Auto-fit component ─────────────────────────────────────
   AFRAME.registerComponent('auto-fit', {
     init: function () {
       this.el.addEventListener('model-loaded', () => {
-        statusEl.textContent = '✅ Model loaded — measuring…';
+        statusEl.textContent = '✅ Model loaded!';
 
         const obj = this.el.getObject3D('mesh');
-        if (!obj) { statusEl.textContent = '⚠️ No mesh found'; return; }
+        if (!obj) { statusEl.textContent = '⚠️ No mesh'; return; }
 
         obj.updateMatrixWorld(true);
 
@@ -114,7 +145,7 @@
         const center = box.getCenter(new THREE.Vector3());
 
         if (isNaN(size.x) || size.x === 0) {
-          statusEl.textContent = '⚠️ Could not measure — using default scale';
+          statusEl.textContent = '⚠️ Measure failed — using defaults';
           return;
         }
 
@@ -178,21 +209,6 @@
     .addEventListener('targetFound', () => statusEl.textContent = '🔱 Shiva Appeared!');
   document.querySelector('[mindar-image-target]')
     .addEventListener('targetLost',  () => statusEl.textContent = 'Scan the marker…');
-
-  // ── Ensure camera video renders through ───────────────────
-  document.querySelector('a-scene').addEventListener('loaded', () => {
-    setTimeout(() => {
-      const video = document.querySelector('video');
-      if (video) {
-        video.style.cssText = [
-          'position:fixed', 'top:0', 'left:0',
-          'width:100%', 'height:100%',
-          'object-fit:cover',
-          'z-index:1'
-        ].join('!important;') + '!important';
-      }
-    }, 1000);
-  });
 </script>
 </body>
 </html>
