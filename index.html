@@ -7,6 +7,8 @@
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <!-- Particle system for smoke -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe-particle-system-component@1.1.x/dist/aframe-particle-system-component.min.js"></script>
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -109,8 +111,79 @@
         ></a-gltf-model>
       </a-entity>
 
-      <!-- 🙏 Shiva — popup wrapper handles emerge animation -->
-      <!-- Starts at scale 0 and position below marker, rises up and scales to full -->
+      <!-- 💨 Smoke — Left side of Shiva -->
+      <a-entity
+        id="smoke-left"
+        position="-0.06 0 0.05"
+        rotation="90 0 0"
+        particle-system="
+          preset: default;
+          particleCount: 60;
+          color: #aaaaaa, #666666, #333333;
+          size: 0.015, 0.04;
+          opacity: 0.6, 0;
+          velocityValue: 0 0.04 0;
+          velocitySpread: 0.01 0.01 0.01;
+          accelerationValue: 0 0.005 0;
+          accelerationSpread: 0.005 0 0.005;
+          maxAge: 3;
+          maxAgeSpread: 1;
+          blending: 2;
+          texture: https://cdn.jsdelivr.net/npm/aframe-particle-system-component@1.1.x/dist/images/smokeparticle.png;
+          rotationAngle: 3.14;
+          rotationAngleSpread: 0.5;
+        "
+      ></a-entity>
+
+      <!-- 💨 Smoke — Right side of Shiva -->
+      <a-entity
+        id="smoke-right"
+        position="0.06 0 0.05"
+        rotation="90 0 0"
+        particle-system="
+          preset: default;
+          particleCount: 60;
+          color: #aaaaaa, #666666, #333333;
+          size: 0.015, 0.04;
+          opacity: 0.6, 0;
+          velocityValue: 0 0.04 0;
+          velocitySpread: 0.01 0.01 0.01;
+          accelerationValue: 0 0.005 0;
+          accelerationSpread: 0.005 0 0.005;
+          maxAge: 3;
+          maxAgeSpread: 1;
+          blending: 2;
+          texture: https://cdn.jsdelivr.net/npm/aframe-particle-system-component@1.1.x/dist/images/smokeparticle.png;
+          rotationAngle: 3.14;
+          rotationAngleSpread: 0.5;
+        "
+      ></a-entity>
+
+      <!-- 💨 Smoke — Back of Shiva (depth) -->
+      <a-entity
+        id="smoke-back"
+        position="0 0 0.02"
+        rotation="90 0 0"
+        particle-system="
+          preset: default;
+          particleCount: 40;
+          color: #888888, #444444, #222222;
+          size: 0.02, 0.05;
+          opacity: 0.4, 0;
+          velocityValue: 0 0.03 0;
+          velocitySpread: 0.02 0.005 0.02;
+          accelerationValue: 0 0.003 0;
+          accelerationSpread: 0.003 0 0.003;
+          maxAge: 4;
+          maxAgeSpread: 1.5;
+          blending: 2;
+          texture: https://cdn.jsdelivr.net/npm/aframe-particle-system-component@1.1.x/dist/images/smokeparticle.png;
+          rotationAngle: 3.14;
+          rotationAngleSpread: 0.8;
+        "
+      ></a-entity>
+
+      <!-- 🙏 Shiva — popup wrapper -->
       <a-entity
         id="shiva-wrapper"
         position="0 0 0"
@@ -140,21 +213,35 @@
     const shivaWrapper = document.getElementById("shiva-wrapper");
     const targetEl     = document.querySelector("[mindar-image-target]");
 
+    // All smoke entities
+    const smokeEls = [
+      document.getElementById("smoke-left"),
+      document.getElementById("smoke-right"),
+      document.getElementById("smoke-back"),
+    ];
+
     function showStatus(text) {
       statusEl.textContent = text;
       statusEl.classList.remove("hidden");
     }
 
-    // ── Popup animation triggered on targetFound ──────────────────────────
+    // Show/hide smoke
+    function showSmoke() {
+      smokeEls.forEach(el => el && el.setAttribute("visible", "true"));
+    }
+    function hideSmoke() {
+      smokeEls.forEach(el => el && el.setAttribute("visible", "false"));
+    }
+
+    // Start hidden
+    hideSmoke();
+
+    // ── Popup animation ───────────────────────────────────────────────────
     function playPopupAnimation() {
-      // Reset to hidden below marker
       shivaWrapper.setAttribute("scale",    "0 0 0");
       shivaWrapper.setAttribute("position", "0 0 -0.05");
 
-      // Small delay so reset takes effect before animating
       setTimeout(() => {
-
-        // Step 1 — scale up from 0 to slightly overshooting (0 → 1.1)
         shivaWrapper.setAttribute("animation__scale", `
           property: scale;
           from: 0 0 0;
@@ -163,8 +250,6 @@
           easing: easeOutCubic;
           startEvents: startPopup;
         `);
-
-        // Step 2 — settle back to 1 (bounce-back feel)
         shivaWrapper.setAttribute("animation__settle", `
           property: scale;
           from: 1.1 1.1 1.1;
@@ -174,8 +259,6 @@
           delay: 700;
           startEvents: startPopup;
         `);
-
-        // Step 3 — rise up from slightly below marker to final position
         shivaWrapper.setAttribute("animation__rise", `
           property: position;
           from: 0 0 -0.08;
@@ -185,8 +268,10 @@
           startEvents: startPopup;
         `);
 
-        // Fire all three together
         shivaWrapper.emit("startPopup");
+
+        // Smoke kicks in as Shiva rises
+        setTimeout(() => showSmoke(), 300);
 
       }, 50);
     }
@@ -218,13 +303,13 @@
       targetEl.addEventListener("targetFound", () => {
         showStatus("🙏 Om Namah Shivaya!");
         setTimeout(() => statusEl.classList.add("hidden"), 3000);
-        playPopupAnimation(); // 🔥 Trigger emerge animation
+        playPopupAnimation();
       });
 
       targetEl.addEventListener("targetLost", () => {
         showStatus("🔍 Point camera at the marker...");
-        // Hide Shiva when marker is lost so it re-animates next time
         shivaWrapper.setAttribute("scale", "0 0 0");
+        hideSmoke();
       });
     }
 
