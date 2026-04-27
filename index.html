@@ -4,25 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Shiva AR</title>
-
 <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-
 <style>
   *, html, body { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; overflow:hidden; background:#000; }
   a-scene { position:fixed; top:0; left:0; width:100%; height:100%; }
-
   #status {
     position:fixed; top:16px; left:50%; transform:translateX(-50%);
-    z-index:9999; background:rgba(0,0,0,0.8); color:#f4a800;
-    padding:10px 20px; border-radius:30px; font-size:13px;
-    text-align:center; max-width:90vw;
+    z-index:9999; background:rgba(0,0,0,0.85); color:#f4a800;
+    padding:10px 20px; border-radius:30px; font-size:12px;
+    text-align:center; max-width:92vw; line-height:1.5;
   }
-
   #controls {
     position:fixed; bottom:0; left:0; right:0; z-index:9999;
-    background:rgba(0,0,0,0.85); padding:12px 16px;
+    background:rgba(0,0,0,0.88); padding:12px 16px;
     display:flex; flex-direction:column; gap:8px;
   }
   .ctrl-row { display:flex; align-items:center; gap:10px; }
@@ -37,13 +33,13 @@
 </head>
 <body>
 
-<div id="status">Loading…</div>
+<div id="status">Loading model…</div>
 
 <div id="controls">
   <div class="ctrl-row">
     <label>Scale</label>
-    <input type="range" id="sl-scale" min="0.01" max="3" step="0.01" value="0.8">
-    <span id="lbl-scale">0.80</span>
+    <input type="range" id="sl-scale" min="0.01" max="3" step="0.01" value="0.5">
+    <span id="lbl-scale">0.50</span>
   </div>
   <div class="ctrl-row">
     <label>Y offset</label>
@@ -66,33 +62,29 @@
   vr-mode-ui="enabled:false"
   device-orientation-permission-ui="enabled:false"
 >
-  <a-assets timeout="30000">
-    <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
+  <a-assets timeout="60000">
+    <a-asset-item id="shiva-model" src="./shiva.glb"></a-asset-item>
   </a-assets>
 
-  <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
-  <a-light type="directional" color="#ffffff" intensity="3" position="1 3 2"></a-light>
+  <a-light type="ambient" color="#ffffff" intensity="3"></a-light>
+  <a-light type="directional" color="#ffffff" intensity="4" position="1 3 2"></a-light>
 
   <a-entity mindar-image-target="targetIndex: 0">
 
-    <!-- ✅ TEST BOX — always visible when marker is detected.
-         If you see this golden box floating on your image, the anchor is working.
-         Once model appears, you can remove this box. -->
-    <a-box id="test-box"
+    <!-- Bright test box — MUST appear floating on marker if tracking works -->
+    <a-box
       width="0.3" height="0.3" depth="0.3"
       position="0 0.15 0"
-      color="#f4a800"
-      material="emissive:#f4a800; emissiveIntensity:1.5; opacity:0.9;">
+      color="#ff0000"
+      material="emissive:#ff0000; emissiveIntensity:2;">
     </a-box>
 
-    <!-- Your 3D model -->
     <a-entity
       id="model"
-      gltf-model="#shiva"
-      position="0 0 0"
+      gltf-model="#shiva-model"
+      position="0 0.5 0"
       rotation="0 180 0"
-      scale="0.8 0.8 0.8"
-      visible="true"
+      scale="0.5 0.5 0.5"
     ></a-entity>
 
   </a-entity>
@@ -102,48 +94,73 @@
 
 <script>
   const statusEl = document.getElementById('status');
-  const model = document.getElementById('model');
+  const modelEl  = document.getElementById('model');
 
-  // ── Model loading ─────────────────────────────────────────────
-  model.addEventListener('model-loaded', () => {
-    const mesh = model.getObject3D('mesh');
-    if (!mesh) {
-      statusEl.textContent = '⚠️ Mesh not found after load';
-      return;
+  // ── Register a component to safely access the loaded mesh ──
+  AFRAME.registerComponent('auto-fit', {
+    init: function () {
+      this.el.addEventListener('model-loaded', () => {
+        statusEl.textContent = '✅ GLB loaded — measuring…';
+
+        // Traverse all meshes and compute a combined bounding box
+        const obj = this.el.getObject3D('mesh');
+        if (!obj) {
+          statusEl.textContent = '⚠️ No mesh object found';
+          return;
+        }
+
+        // Force matrix updates first
+        obj.updateMatrixWorld(true);
+
+        const box = new THREE.Box3();
+        obj.traverse(child => {
+          if (child.isMesh && child.geometry) {
+            child.geometry.computeBoundingBox();
+            const childBox = child.geometry.boundingBox.clone();
+            childBox.applyMatrix4(child.matrixWorld);
+            box.union(childBox);
+          }
+        });
+
+        const size   = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        console.log('✅ Computed size:', size);
+        console.log('✅ Computed center:', center);
+
+        if (isNaN(size.x) || size.x === 0) {
+          statusEl.textContent = '⚠️ Bounding box still NaN — using default scale 0.5';
+          return;
+        }
+
+        const TARGET   = 0.9;
+        const rawMax   = Math.max(size.x, size.y, size.z);
+        const autoScale = TARGET / rawMax;
+        const offsetY  = -center.y * autoScale + (size.y * autoScale * 0.5);
+
+        this.el.setAttribute('scale', `${autoScale} ${autoScale} ${autoScale}`);
+        this.el.setAttribute('position', `0 ${offsetY} 0`);
+
+        document.getElementById('sl-scale').value = autoScale.toFixed(3);
+        document.getElementById('lbl-scale').textContent = autoScale.toFixed(3);
+        document.getElementById('sl-y').value = offsetY.toFixed(3);
+        document.getElementById('lbl-y').textContent = offsetY.toFixed(3);
+
+        statusEl.innerHTML =
+          `Scale: ${autoScale.toFixed(3)} | Y: ${offsetY.toFixed(3)}<br>🔱 Scan the marker!`;
+      });
+
+      this.el.addEventListener('model-error', e => {
+        statusEl.innerHTML = '❌ GLB FAILED TO LOAD<br>Check: shiva.glb same folder as index.html';
+        console.error('model-error', e.detail);
+      });
     }
-
-    setTimeout(() => {
-      mesh.scale.set(1, 1, 1);
-      const box = new THREE.Box3().setFromObject(mesh);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-
-      // Target: fit model in ~0.9 units (marker ≈ 1 unit wide)
-      const TARGET = 0.9;
-      const rawMax = Math.max(size.x, size.y, size.z);
-      const autoScale = TARGET / rawMax;
-      const offsetY = -center.y * autoScale + (size.y * autoScale * 0.5);
-
-      model.setAttribute('scale', `${autoScale} ${autoScale} ${autoScale}`);
-      model.setAttribute('position', `0 ${offsetY} 0`);
-
-      document.getElementById('sl-scale').value = autoScale;
-      document.getElementById('lbl-scale').textContent = autoScale.toFixed(2);
-      document.getElementById('sl-y').value = offsetY;
-      document.getElementById('lbl-y').textContent = offsetY.toFixed(2);
-
-      statusEl.innerHTML = `✅ Model loaded | scale:${autoScale.toFixed(3)} y:${offsetY.toFixed(3)}<br>Scan the marker!`;
-      console.log('Model size:', size);
-      console.log('Auto scale:', autoScale, '| Y offset:', offsetY);
-    }, 200);
   });
 
-  model.addEventListener('model-error', (e) => {
-    statusEl.innerHTML = '❌ GLB load failed! Check shiva.glb path.<br>' + JSON.stringify(e.detail);
-    console.error('model-error:', e.detail);
-  });
+  // Attach component to model entity
+  modelEl.setAttribute('auto-fit', '');
 
-  // ── Sliders ───────────────────────────────────────────────────
+  // ── Sliders ────────────────────────────────────────────────
   function bindSlider(id, lblId, fn) {
     const sl = document.getElementById(id);
     const lb = document.getElementById(lblId);
@@ -153,32 +170,38 @@
     });
   }
 
-  bindSlider('sl-scale', 'lbl-scale', v => model.setAttribute('scale', `${v} ${v} ${v}`));
+  bindSlider('sl-scale', 'lbl-scale', v => {
+    modelEl.setAttribute('scale', `${v} ${v} ${v}`);
+  });
   bindSlider('sl-y', 'lbl-y', v => {
-    const p = model.getAttribute('position');
-    model.setAttribute('position', `${p.x} ${v} ${p.z}`);
+    const p = modelEl.getAttribute('position');
+    modelEl.setAttribute('position', `${p.x} ${v} ${p.z}`);
   });
   bindSlider('sl-rx', 'lbl-rx', v => {
-    const r = model.getAttribute('rotation');
-    model.setAttribute('rotation', `${v} ${r.y} ${r.z}`);
+    const r = modelEl.getAttribute('rotation');
+    modelEl.setAttribute('rotation', `${v} ${r.y} ${r.z}`);
   });
 
   function logValues() {
-    const s = model.getAttribute('scale');
-    const p = model.getAttribute('position');
-    const r = model.getAttribute('rotation');
-    const msg = `scale="${s.x.toFixed(3)} ${s.y.toFixed(3)} ${s.z.toFixed(3)}" position="${p.x.toFixed(3)} ${p.y.toFixed(3)} ${p.z.toFixed(3)}" rotation="${r.x} ${r.y} ${r.z}"`;
-    console.log(msg);
+    const s = modelEl.getAttribute('scale');
+    const p = modelEl.getAttribute('position');
+    const r = modelEl.getAttribute('rotation');
+    const msg = `scale="${s.x.toFixed(3)} ${s.y.toFixed(3)} ${s.z.toFixed(3)}" ` +
+                `position="${p.x.toFixed(3)} ${p.y.toFixed(3)} ${p.z.toFixed(3)}" ` +
+                `rotation="${r.x} ${r.y} ${r.z}"`;
+    console.log('Final values:', msg);
     statusEl.textContent = msg;
   }
 
-  // ── Marker events ─────────────────────────────────────────────
-  document.querySelector('[mindar-image-target]').addEventListener('targetFound', () => {
-    statusEl.textContent = '🔱 Shiva Appeared!';
-  });
-  document.querySelector('[mindar-image-target]').addEventListener('targetLost', () => {
-    statusEl.textContent = 'Scan the marker…';
-  });
+  // ── Marker events ──────────────────────────────────────────
+  document.querySelector('[mindar-image-target]')
+    .addEventListener('targetFound', () => {
+      statusEl.textContent = '🔱 Marker found! Do you see the RED BOX?';
+    });
+  document.querySelector('[mindar-image-target]')
+    .addEventListener('targetLost',  () => {
+      statusEl.textContent = 'Scan the marker…';
+    });
 </script>
 </body>
 </html>
