@@ -85,16 +85,14 @@
 
     <a-entity mindar-image-target="targetIndex: 0">
 
-      <!-- 🔵 Tech base — tight around Shiva's feet, flat, slow spin -->
-      <!-- position Y=0 sits it right on the marker surface         -->
-      <!-- scale 0.07 = much smaller, just around the lower body    -->
+      <!-- 🔵 Tech base -->
       <a-entity position="0 0 0.15" rotation="90 0 0">
         <a-gltf-model
           id="tech-model"
           src="#tech"
           position="0 -0.18 0"
           rotation="0 0 0"
-          scale="0.02 0.02 0.02"
+          scale="0.07 0.07 0.07"
           animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 6000; easing: linear;"
         ></a-gltf-model>
       </a-entity>
@@ -111,15 +109,22 @@
         ></a-gltf-model>
       </a-entity>
 
-      <!-- 🙏 Shiva — rendered last, always on top -->
-      <a-entity position="0 0 0.15" rotation="90 0 0">
-        <a-gltf-model
-          id="shiva-model"
-          src="#shiva"
-          position="0 0 0"
-          rotation="0 270 0"
-          scale="0.5 0.5 0.5"
-        ></a-gltf-model>
+      <!-- 🙏 Shiva — popup wrapper handles emerge animation -->
+      <!-- Starts at scale 0 and position below marker, rises up and scales to full -->
+      <a-entity
+        id="shiva-wrapper"
+        position="0 0 0"
+        scale="0 0 0"
+      >
+        <a-entity position="0 0 0.15" rotation="90 0 0">
+          <a-gltf-model
+            id="shiva-model"
+            src="#shiva"
+            position="0 0 0"
+            rotation="0 270 0"
+            scale="0.5 0.5 0.5"
+          ></a-gltf-model>
+        </a-entity>
       </a-entity>
 
     </a-entity>
@@ -127,18 +132,66 @@
   </a-scene>
 
   <script>
-    const statusEl = document.getElementById("status");
-    const scene    = document.querySelector("a-scene");
-    const modelEl  = document.getElementById("shiva-model");
-    const sunEl    = document.getElementById("sun-model");
-    const techEl   = document.getElementById("tech-model");
-    const targetEl = document.querySelector("[mindar-image-target]");
+    const statusEl     = document.getElementById("status");
+    const scene        = document.querySelector("a-scene");
+    const modelEl      = document.getElementById("shiva-model");
+    const sunEl        = document.getElementById("sun-model");
+    const techEl       = document.getElementById("tech-model");
+    const shivaWrapper = document.getElementById("shiva-wrapper");
+    const targetEl     = document.querySelector("[mindar-image-target]");
 
     function showStatus(text) {
       statusEl.textContent = text;
       statusEl.classList.remove("hidden");
     }
 
+    // ── Popup animation triggered on targetFound ──────────────────────────
+    function playPopupAnimation() {
+      // Reset to hidden below marker
+      shivaWrapper.setAttribute("scale",    "0 0 0");
+      shivaWrapper.setAttribute("position", "0 0 -0.05");
+
+      // Small delay so reset takes effect before animating
+      setTimeout(() => {
+
+        // Step 1 — scale up from 0 to slightly overshooting (0 → 1.1)
+        shivaWrapper.setAttribute("animation__scale", `
+          property: scale;
+          from: 0 0 0;
+          to: 1.1 1.1 1.1;
+          dur: 700;
+          easing: easeOutCubic;
+          startEvents: startPopup;
+        `);
+
+        // Step 2 — settle back to 1 (bounce-back feel)
+        shivaWrapper.setAttribute("animation__settle", `
+          property: scale;
+          from: 1.1 1.1 1.1;
+          to: 1 1 1;
+          dur: 250;
+          easing: easeInOutQuad;
+          delay: 700;
+          startEvents: startPopup;
+        `);
+
+        // Step 3 — rise up from slightly below marker to final position
+        shivaWrapper.setAttribute("animation__rise", `
+          property: position;
+          from: 0 0 -0.08;
+          to: 0 0 0;
+          dur: 700;
+          easing: easeOutCubic;
+          startEvents: startPopup;
+        `);
+
+        // Fire all three together
+        shivaWrapper.emit("startPopup");
+
+      }, 50);
+    }
+
+    // ── Model events ──────────────────────────────────────────────────────
     if (modelEl) {
       modelEl.addEventListener("model-loaded", () => {
         showStatus("✅ Model loaded — scan the marker!");
@@ -151,33 +204,31 @@
     }
 
     if (sunEl) {
-      sunEl.addEventListener("model-loaded", () => {
-        console.log("✅ Sun GLB loaded");
-      });
-      sunEl.addEventListener("model-error", (e) => {
-        console.error("Sun model error:", e);
-      });
+      sunEl.addEventListener("model-loaded", () => console.log("✅ Sun GLB loaded"));
+      sunEl.addEventListener("model-error",  (e) => console.error("Sun error:", e));
     }
 
     if (techEl) {
-      techEl.addEventListener("model-loaded", () => {
-        console.log("✅ Tech base GLB loaded");
-      });
-      techEl.addEventListener("model-error", (e) => {
-        console.error("Tech model error:", e);
-      });
+      techEl.addEventListener("model-loaded", () => console.log("✅ Tech base GLB loaded"));
+      techEl.addEventListener("model-error",  (e) => console.error("Tech error:", e));
     }
 
+    // ── Target found / lost ───────────────────────────────────────────────
     if (targetEl) {
       targetEl.addEventListener("targetFound", () => {
         showStatus("🙏 Om Namah Shivaya!");
         setTimeout(() => statusEl.classList.add("hidden"), 3000);
+        playPopupAnimation(); // 🔥 Trigger emerge animation
       });
+
       targetEl.addEventListener("targetLost", () => {
         showStatus("🔍 Point camera at the marker...");
+        // Hide Shiva when marker is lost so it re-animates next time
+        shivaWrapper.setAttribute("scale", "0 0 0");
       });
     }
 
+    // ── AR ready / error ──────────────────────────────────────────────────
     if (scene) {
       scene.addEventListener("arReady", () => {
         showStatus("📷 Camera ready — scan the marker!");
