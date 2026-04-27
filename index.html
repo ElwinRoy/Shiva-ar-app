@@ -10,7 +10,6 @@
   *, html, body { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; overflow:hidden; background:#000; }
   a-scene { position:fixed; top:0; left:0; width:100%; height:100%; }
-
   #status {
     position:fixed; top:16px; left:50%; transform:translateX(-50%);
     z-index:9999; background:rgba(0,0,0,0.75); color:#f4a800;
@@ -59,9 +58,10 @@
   mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes;"
   embedded
   color-space="sRGB"
-  renderer="colorManagement:true; physicallyCorrectLights:true;"
+  renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
   vr-mode-ui="enabled:false"
   device-orientation-permission-ui="enabled:false"
+  background="transparent: true;"
 >
   <a-assets timeout="60000">
     <a-asset-item id="shiva-model" src="./shiva.glb"></a-asset-item>
@@ -86,43 +86,23 @@
 <script>
   const statusEl = document.getElementById('status');
   const modelEl  = document.getElementById('model');
+  const sceneEl  = document.querySelector('a-scene');
 
-  // ── Watch DOM and force correct z-order the moment elements appear ──
-  // MindAR creates: <video> (camera), <canvas> (its 2D UI overlay), 
-  // and A-Frame creates: <canvas> (WebGL/Three.js)
-  // We need: video(z:1) → MindAR 2D canvas(z:2) → WebGL canvas(z:3)
-  const observer = new MutationObserver(() => {
-    const videos   = document.querySelectorAll('video');
-    const canvases = document.querySelectorAll('canvas');
-
-    videos.forEach(v => {
-      v.style.position   = 'fixed';
-      v.style.top        = '0';
-      v.style.left       = '0';
-      v.style.width      = '100%';
-      v.style.height     = '100%';
-      v.style.objectFit  = 'cover';
-      v.style.zIndex     = '1';
-    });
-
-    // A-Frame's WebGL canvas is always the LAST canvas added to the scene
-    // MindAR adds its 2D overlay canvas first, then A-Frame adds its WebGL canvas
-    canvases.forEach((c, i) => {
-      c.style.position = 'fixed';
-      c.style.top      = '0';
-      c.style.left     = '0';
-      c.style.width    = '100%';
-      c.style.height   = '100%';
-      // Give each canvas a higher z than the previous
-      // The WebGL canvas (last one) gets the highest z
-      c.style.zIndex   = String(2 + i);
-    });
+  // ── THE KEY FIX ───────────────────────────────────────────
+  // After scene loads, tell Three.js renderer to clear with alpha=0
+  // so the camera video behind the canvas shows through
+  sceneEl.addEventListener('loaded', () => {
+    const renderer = sceneEl.renderer;
+    renderer.setClearColor(new THREE.Color(0x000000), 0);
+    renderer.autoClearColor = true;
+    console.log('✅ Renderer set to transparent background');
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  // Stop observing after 5s (everything should be set up by then)
-  setTimeout(() => observer.disconnect(), 5000);
+  // Also patch it on every render frame (A-Frame can reset it)
+  sceneEl.addEventListener('renderstart', () => {
+    const renderer = sceneEl.renderer;
+    renderer.setClearColor(new THREE.Color(0x000000), 0);
+  });
 
   // ── Auto-fit component ─────────────────────────────────────
   AFRAME.registerComponent('auto-fit', {
