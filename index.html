@@ -10,14 +10,14 @@
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
     video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; object-fit: cover !important; z-index: 1 !important; }
     canvas.a-canvas { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2 !important; }
     #status {
       position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
       z-index: 9999; background: rgba(0,0,0,0.75); color: #f4a800;
       padding: 10px 24px; border-radius: 30px; font-size: 14px; font-weight: 600;
-      letter-spacing: 0.5px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      letter-spacing: 0.5px; backdrop-filter: blur(6px);
       border: 1px solid rgba(244,168,0,0.3); transition: opacity 0.5s ease;
       pointer-events: none; white-space: nowrap;
     }
@@ -27,6 +27,143 @@
 <body>
 
   <div id="status">🙏 Starting Camera...</div>
+
+  <script>
+    // ── Custom smoke component using Three.js directly ──────────────────
+    AFRAME.registerComponent('smoke-effect', {
+      schema: {
+        active:  { type: 'boolean', default: false },
+        count:   { type: 'int',     default: 40    },
+        radius:  { type: 'number',  default: 0.08  },
+        height:  { type: 'number',  default: 0.25  },
+        color:   { type: 'color',   default: '#aaaaaa' }
+      },
+
+      init() {
+        this.particles = [];
+        this.group     = new THREE.Group();
+        this.el.object3D.add(this.group);
+        this._buildParticles();
+      },
+
+      _buildParticles() {
+        const { count, color } = this.data;
+
+        for (let i = 0; i < count; i++) {
+          const size = 0.012 + Math.random() * 0.018;
+          const geo  = new THREE.SphereGeometry(size, 5, 5);
+          const mat  = new THREE.MeshBasicMaterial({
+            color:       new THREE.Color(color),
+            transparent: true,
+            opacity:     0,
+            depthWrite:  false,
+          });
+          const mesh = new THREE.Mesh(geo, mat);
+
+          // random start position in a ring around Shiva
+          const angle  = Math.random() * Math.PI * 2;
+          const r      = 0.02 + Math.random() * this.data.radius;
+          mesh.position.set(
+            Math.cos(angle) * r,
+            -0.05 + Math.random() * 0.04,   // start near feet
+            Math.sin(angle) * r
+          );
+
+          this.group.add(mesh);
+
+          // per-particle state
+          this.particles.push({
+            mesh,
+            speed:    0.012 + Math.random() * 0.018,
+            maxY:     0.12  + Math.random() * this.data.height,
+            startY:   mesh.position.y,
+            drift:    (Math.random() - 0.5) * 0.006,
+            driftZ:   (Math.random() - 0.5) * 0.006,
+            delay:    Math.random() * 2.5,   // stagger start
+            age:      0,
+            lifespan: 2.0 + Math.random() * 1.5,
+            active:   false,
+          });
+        }
+      },
+
+      _resetParticle(p) {
+        const angle = Math.random() * Math.PI * 2;
+        const r     = 0.02 + Math.random() * this.data.radius;
+        p.mesh.position.set(
+          Math.cos(angle) * r,
+          -0.05 + Math.random() * 0.03,
+          Math.sin(angle) * r
+        );
+        p.startY    = p.mesh.position.y;
+        p.mesh.material.opacity = 0;
+        p.mesh.scale.set(1, 1, 1);
+        p.age       = 0;
+        p.lifespan  = 2.0 + Math.random() * 1.5;
+        p.speed     = 0.012 + Math.random() * 0.018;
+        p.drift     = (Math.random() - 0.5) * 0.006;
+        p.driftZ    = (Math.random() - 0.5) * 0.006;
+        p.active    = false;
+        p.delay     = Math.random() * 1.0;
+      },
+
+      tick(time, delta) {
+        if (!this.data.active) return;
+        const dt = delta / 1000; // seconds
+
+        this.particles.forEach(p => {
+          // count down delay before particle activates
+          if (!p.active) {
+            p.delay -= dt;
+            if (p.delay <= 0) p.active = true;
+            return;
+          }
+
+          p.age += dt;
+          const progress = p.age / p.lifespan; // 0 → 1
+
+          if (progress >= 1) {
+            this._resetParticle(p);
+            return;
+          }
+
+          // rise upward
+          p.mesh.position.y += p.speed * dt;
+          p.mesh.position.x += p.drift;
+          p.mesh.position.z += p.driftZ;
+
+          // grow as it rises
+          const s = 1 + progress * 2.5;
+          p.mesh.scale.set(s, s, s);
+
+          // fade: rise in → fade out
+          let opacity;
+          if (progress < 0.2) {
+            opacity = progress / 0.2 * 0.5;       // fade in
+          } else {
+            opacity = (1 - progress) * 0.5;        // fade out
+          }
+          p.mesh.material.opacity = opacity;
+        });
+      },
+
+      // called externally to start/stop
+      setActive(val) {
+        this.data.active = val;
+        if (!val) {
+          // instantly hide all
+          this.particles.forEach(p => {
+            p.mesh.material.opacity = 0;
+            this._resetParticle(p);
+          });
+        }
+      },
+
+      remove() {
+        this.el.object3D.remove(this.group);
+      }
+    });
+  </script>
 
   <a-scene
     mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
@@ -62,7 +199,7 @@
         ></a-gltf-model>
       </a-entity>
 
-      <!-- ☀️ Sun — behind head -->
+      <!-- ☀️ Sun -->
       <a-entity position="0 0 0.05" rotation="90 0 0">
         <a-gltf-model
           id="sun-model"
@@ -74,85 +211,14 @@
         ></a-gltf-model>
       </a-entity>
 
-      <!-- 💨 SMOKE SYSTEM — pure A-Frame, no external lib -->
-      <!-- Each puff = a sphere that rises + fades using built-in animation -->
-      <a-entity id="smoke-container" visible="false">
+      <!-- 💨 Smoke — sits at Shiva's base level -->
+      <a-entity
+        id="smoke-entity"
+        position="0 0.02 0.15"
+        smoke-effect="active: false; count: 40; radius: 0.08; height: 0.25; color: #aaaaaa;"
+      ></a-entity>
 
-        <!-- Puff 1 — left -->
-        <a-sphere id="puff1"
-          position="-0.05 0.02 0.12"
-          radius="0.025"
-          color="#999999"
-          opacity="0"
-          material="transparent: true; opacity: 0; shader: flat;"
-          animation__rise="property: position; from: -0.05 0.02 0.12; to: -0.07 0.15 0.12; dur: 2500; loop: true; easing: easeOutQuad;"
-          animation__fade="property: components.material.material.opacity; from: 0.45; to: 0; dur: 2500; loop: true; easing: easeInQuad;"
-          animation__grow="property: scale; from: 1 1 1; to: 2.5 2.5 2.5; dur: 2500; loop: true; easing: easeOutQuad;"
-        ></a-sphere>
-
-        <!-- Puff 2 — right -->
-        <a-sphere id="puff2"
-          position="0.05 0.02 0.12"
-          radius="0.025"
-          color="#888888"
-          opacity="0"
-          material="transparent: true; opacity: 0; shader: flat;"
-          animation__rise="property: position; from: 0.05 0.02 0.12; to: 0.08 0.14 0.12; dur: 2800; loop: true; easing: easeOutQuad; delay: 400;"
-          animation__fade="property: components.material.material.opacity; from: 0.4; to: 0; dur: 2800; loop: true; easing: easeInQuad; delay: 400;"
-          animation__grow="property: scale; from: 1 1 1; to: 2.2 2.2 2.2; dur: 2800; loop: true; easing: easeOutQuad; delay: 400;"
-        ></a-sphere>
-
-        <!-- Puff 3 — center left -->
-        <a-sphere id="puff3"
-          position="-0.02 0.02 0.13"
-          radius="0.02"
-          color="#aaaaaa"
-          opacity="0"
-          material="transparent: true; opacity: 0; shader: flat;"
-          animation__rise="property: position; from: -0.02 0.02 0.13; to: -0.04 0.18 0.13; dur: 3200; loop: true; easing: easeOutQuad; delay: 800;"
-          animation__fade="property: components.material.material.opacity; from: 0.35; to: 0; dur: 3200; loop: true; easing: easeInQuad; delay: 800;"
-          animation__grow="property: scale; from: 1 1 1; to: 3 3 3; dur: 3200; loop: true; easing: easeOutQuad; delay: 800;"
-        ></a-sphere>
-
-        <!-- Puff 4 — center right -->
-        <a-sphere id="puff4"
-          position="0.02 0.02 0.13"
-          radius="0.02"
-          color="#bbbbbb"
-          opacity="0"
-          material="transparent: true; opacity: 0; shader: flat;"
-          animation__rise="property: position; from: 0.02 0.02 0.13; to: 0.05 0.16 0.13; dur: 2600; loop: true; easing: easeOutQuad; delay: 1200;"
-          animation__fade="property: components.material.material.opacity; from: 0.4; to: 0; dur: 2600; loop: true; easing: easeInQuad; delay: 1200;"
-          animation__grow="property: scale; from: 1 1 1; to: 2.8 2.8 2.8; dur: 2600; loop: true; easing: easeOutQuad; delay: 1200;"
-        ></a-sphere>
-
-        <!-- Puff 5 — far left, low -->
-        <a-sphere id="puff5"
-          position="-0.07 0.01 0.11"
-          radius="0.018"
-          color="#777777"
-          opacity="0"
-          material="transparent: true; opacity: 0; shader: flat;"
-          animation__rise="property: position; from: -0.07 0.01 0.11; to: -0.10 0.12 0.11; dur: 3000; loop: true; easing: easeOutQuad; delay: 600;"
-          animation__fade="property: components.material.material.opacity; from: 0.3; to: 0; dur: 3000; loop: true; easing: easeInQuad; delay: 600;"
-          animation__grow="property: scale; from: 1 1 1; to: 2 2 2; dur: 3000; loop: true; easing: easeOutQuad; delay: 600;"
-        ></a-sphere>
-
-        <!-- Puff 6 — far right, low -->
-        <a-sphere id="puff6"
-          position="0.07 0.01 0.11"
-          radius="0.018"
-          color="#777777"
-          opacity="0"
-          material="transparent: true; opacity: 0; shader: flat;"
-          animation__rise="property: position; from: 0.07 0.01 0.11; to: 0.10 0.13 0.11; dur: 2700; loop: true; easing: easeOutQuad; delay: 1600;"
-          animation__fade="property: components.material.material.opacity; from: 0.3; to: 0; dur: 2700; loop: true; easing: easeInQuad; delay: 1600;"
-          animation__grow="property: scale; from: 1 1 1; to: 2.3 2.3 2.3; dur: 2700; loop: true; easing: easeOutQuad; delay: 1600;"
-        ></a-sphere>
-
-      </a-entity>
-
-      <!-- 🙏 Shiva — popup wrapper -->
+      <!-- 🙏 Shiva popup wrapper -->
       <a-entity id="shiva-wrapper" position="0 0 0" scale="0 0 0">
         <a-entity position="0 0 0.15" rotation="90 0 0">
           <a-gltf-model
@@ -170,22 +236,27 @@
   </a-scene>
 
   <script>
-    const statusEl      = document.getElementById("status");
-    const scene         = document.querySelector("a-scene");
-    const modelEl       = document.getElementById("shiva-model");
-    const sunEl         = document.getElementById("sun-model");
-    const techEl        = document.getElementById("tech-model");
-    const shivaWrapper  = document.getElementById("shiva-wrapper");
-    const smokeContainer= document.getElementById("smoke-container");
-    const targetEl      = document.querySelector("[mindar-image-target]");
+    const statusEl     = document.getElementById("status");
+    const scene        = document.querySelector("a-scene");
+    const modelEl      = document.getElementById("shiva-model");
+    const sunEl        = document.getElementById("sun-model");
+    const techEl       = document.getElementById("tech-model");
+    const shivaWrapper = document.getElementById("shiva-wrapper");
+    const smokeEl      = document.getElementById("smoke-entity");
+    const targetEl     = document.querySelector("[mindar-image-target]");
 
     function showStatus(msg) {
       statusEl.textContent = msg;
       statusEl.classList.remove("hidden");
     }
 
-    function showSmoke() { smokeContainer.setAttribute("visible", "true"); }
-    function hideSmoke() { smokeContainer.setAttribute("visible", "false"); }
+    function startSmoke() {
+      smokeEl.components['smoke-effect'].setActive(true);
+    }
+
+    function stopSmoke() {
+      smokeEl.components['smoke-effect'].setActive(false);
+    }
 
     // ── Popup animation ───────────────────────────────────────────────────
     function playPopupAnimation() {
@@ -208,8 +279,8 @@
 
         shivaWrapper.emit("startPopup");
 
-        // Smoke appears as Shiva rises
-        setTimeout(() => showSmoke(), 300);
+        // Smoke starts as Shiva rises
+        setTimeout(() => startSmoke(), 300);
 
       }, 50);
     }
@@ -247,7 +318,7 @@
       targetEl.addEventListener("targetLost", () => {
         showStatus("🔍 Point camera at the marker...");
         shivaWrapper.setAttribute("scale", "0 0 0");
-        hideSmoke();
+        stopSmoke();
       });
     }
 
