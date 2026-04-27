@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Shiva AR Camera Fix</title>
+
+<!-- AFRAME -->
+<script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
+
+<!-- MINDAR -->
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+<style>
+html, body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#000;
+}
+
+a-scene{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+}
+
+/* camera video */
+video{
+    position:fixed !important;
+    top:0 !important;
+    left:0 !important;
+    width:100% !important;
+    height:100% !important;
+    object-fit:cover !important;
+    z-index:1 !important;
+}
+
+/* ar canvas */
+canvas{
+    position:fixed !important;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    z-index:2 !important;
+}
+
+/* loading text */
+#status{
+    position:fixed;
+    top:20px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:9999;
+    background:rgba(0,0,0,0.7);
+    color:#f4a800;
+    padding:10px 20px;
+    border-radius:30px;
+    font-family:Arial;
+    font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="status">Starting Camera...</div>
+
+<a-scene
+mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
+embedded
+color-space="sRGB"
+renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
+vr-mode-ui="enabled:false"
+device-orientation-permission-ui="enabled:false"
+>
+
+<a-assets timeout="0">
+<a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
+</a-assets>
+
+<!-- Lights -->
+<a-light type="ambient" intensity="3"></a-light>
+<a-light type="directional" intensity="4" position="0 2 1"></a-light>
+
+<!-- Marker -->
+<a-entity mindar-image-target="targetIndex:0">
+
+    <!-- Shiva Model -->
+    <a-entity
+        id="model"
+        gltf-model="#shiva"
+        position="0 0 0"
+        rotation="0 180 0"
+        scale="0.05 0.05 0.05"
+        animation="property: rotation; to:0 540 0; dur:15000; loop:true; easing:linear;">
+    </a-entity>
+
+    <!-- Golden Ring -->
+    <a-torus
+        radius="0.6"
+        radius-tubular="0.02"
+        rotation="90 0 0"
+        color="#f4a800"
+        material="emissive:#f4a800; emissiveIntensity:2;">
+    </a-torus>
+
+</a-entity>
+
+<a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
+
+</a-scene>
+
+<script>
+const status = document.getElementById("status");
+const model = document.getElementById("model");
+
+/* model loaded */
+model.addEventListener("model-loaded", () => {
+    status.innerHTML = "Model Loaded. Scan Marker.";
+});
+
+/* target found */
+document.querySelector("[mindar-image-target]")
+.addEventListener("targetFound", () => {
+    status.innerHTML = "Shiva Appeared";
+    setTimeout(()=>{
+        status.style.display="none";
+    },2000);
+});
+
+/* camera fix */
+document.querySelector("a-scene").addEventListener("loaded", () => {
+
+    setTimeout(() => {
+
+        const video = document.querySelector("video");
+
+        if(video){
+
+            video.setAttribute("autoplay","");
+            video.setAttribute("muted","");
+            video.setAttribute("playsinline","");
+
+            video.style.position = "fixed";
+            video.style.top = "0";
+            video.style.left = "0";
+            video.style.width = "100%";
+            video.style.height = "100%";
+            video.style.objectFit = "cover";
+            video.style.zIndex = "1";
+
+            status.innerHTML = "Camera Ready. Scan Marker.";
+
+        } else {
+            status.innerHTML = "Camera Failed. Use HTTPS.";
+        }
+
+    },1500);
+
+});
+</script>
+
+</body>
+</html>
