@@ -1,209 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Shiva AR</title>
-<script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-<style>
-  *, html, body { margin:0; padding:0; box-sizing:border-box; }
-  html, body { width:100%; height:100%; overflow:hidden; background:#000; }
-  a-scene { position:fixed; top:0; left:0; width:100%; height:100%; }
-  #status {
-    position:fixed; top:16px; left:50%; transform:translateX(-50%);
-    z-index:9999; background:rgba(0,0,0,0.75); color:#f4a800;
-    padding:10px 24px; border-radius:30px; font-size:13px;
-    text-align:center; max-width:92vw; font-family:Arial,sans-serif;
-  }
-  #controls {
-    position:fixed; bottom:0; left:0; right:0; z-index:9999;
-    background:rgba(0,0,0,0.88); padding:12px 16px;
-    display:flex; flex-direction:column; gap:8px; font-family:Arial,sans-serif;
-  }
-  .ctrl-row { display:flex; align-items:center; gap:10px; }
-  .ctrl-row label { color:#f4a800; font-size:11px; width:80px; flex-shrink:0; }
-  .ctrl-row input[type=range] { flex:1; accent-color:#f4a800; }
-  .ctrl-row span { color:#fff; font-size:11px; width:60px; text-align:right; flex-shrink:0; }
-  #controls button {
-    background:#f4a800; border:none; border-radius:20px;
-    padding:8px; color:#000; font-weight:700; font-size:12px; cursor:pointer;
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Shiva AR Experience</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+
+  <!-- MindAR Image Tracking -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    /* Camera video feed — must sit BEHIND the AR canvas */
+    video {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      object-fit: cover !important;
+      z-index: 1 !important;
+    }
+
+    /* AR canvas — transparent, sits ON TOP of video */
+    canvas.a-canvas {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 2 !important;
+    }
+
+    /* Status pill */
+    #status {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.75);
+      color: #f4a800;
+      padding: 10px 24px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid rgba(244, 168, 0, 0.3);
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    #status.hidden {
+      opacity: 0;
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="status">Loading…</div>
+  <div id="status">🙏 Starting Camera...</div>
 
-<div id="controls">
-  <div class="ctrl-row">
-    <label>Scale</label>
-    <input type="range" id="sl-scale" min="0.01" max="3" step="0.01" value="0.5">
-    <span id="lbl-scale">0.50</span>
-  </div>
-  <div class="ctrl-row">
-    <label>Y offset</label>
-    <input type="range" id="sl-y" min="-2" max="3" step="0.01" value="0">
-    <span id="lbl-y">0.00</span>
-  </div>
-  <div class="ctrl-row">
-    <label>Rotation Y</label>
-    <input type="range" id="sl-ry" min="-180" max="180" step="1" value="0">
-    <span id="lbl-ry">0</span>
-  </div>
-  <button onclick="logValues()">📋 Log values</button>
-</div>
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
+    color-space="sRGB"
+    renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+  >
 
-<!--
-  KEY INSIGHT from reading MindAR source:
-  - MindAR sets video z-index to -2 (behind everything)
-  - A-Frame WebGL canvas sits on top naturally
-  - The ONLY reason camera doesn't show through = Three.js black clear color
-  - Fix: alpha:true on renderer + setClearColor(0,0) once on renderstart
-  - Do NOT use background="transparent:true" — it resets the clear color every frame
--->
-<a-scene
-  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes;"
-  embedded
-  color-space="sRGB"
-  renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
-  vr-mode-ui="enabled:false"
-  device-orientation-permission-ui="enabled:false"
->
-  <a-assets timeout="60000">
-    <a-asset-item id="shiva-model" src="./shiva.glb"></a-asset-item>
-  </a-assets>
+    <!-- Preload the 3D model -->
+    <a-assets timeout="60000">
+      <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
+    </a-assets>
 
-  <a-light type="ambient" color="#ffffff" intensity="3"></a-light>
-  <a-light type="directional" color="#ffffff" intensity="4" position="1 3 2"></a-light>
+    <!-- Lighting -->
+    <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="3" position="0 3 2"></a-light>
+    <a-light type="directional" color="#ffe0b0" intensity="1.5" position="-2 1 -1"></a-light>
 
-  <a-entity mindar-image-target="targetIndex: 0">
-    <a-entity
-      id="model"
-      gltf-model="#shiva-model"
-      position="0 0 0"
-      rotation="0 0 0"
-      scale="0.5 0.5 0.5"
-    ></a-entity>
-  </a-entity>
+    <!-- Camera -->
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-  <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
-</a-scene>
+    <!-- Image Target (marker) -->
+    <a-entity mindar-image-target="targetIndex: 0">
 
-<script>
-  const statusEl = document.getElementById('status');
-  const modelEl  = document.getElementById('model');
-  const sceneEl  = document.querySelector('a-scene');
+      <!-- Wrapper: tips model upright from card surface -->
+      <a-entity position="0 0 0.15" rotation="90 0 0">
+        <!-- Shiva Model: rotation 0 270 0 = faces camera (proven working) -->
+        <a-gltf-model
+          id="shiva-model"
+          src="#shiva"
+          position="0 0 0"
+          rotation="0 270 0"
+          scale="0.5 0.5 0.5"
+        ></a-gltf-model>
+      </a-entity>
 
-  // ── Transparent background fix ─────────────────────────────
-  // A-Frame's "background" component overrides setClearColor every frame.
-  // So we remove it and set alpha directly on the renderer ONCE after load.
-  sceneEl.addEventListener('loaded', () => {
-    // Remove A-Frame's default background component so it stops fighting us
-    sceneEl.removeAttribute('background');
+    </a-entity>
 
-    const renderer = sceneEl.renderer;
-    renderer.setClearColor(0x000000, 0); // alpha=0 → fully transparent
-    console.log('✅ Transparent background set');
-  });
+  </a-scene>
 
-  // ── Auto-fit + correct facing ──────────────────────────────
-  AFRAME.registerComponent('auto-fit', {
-    init: function () {
-      this.el.addEventListener('model-loaded', () => {
-        statusEl.textContent = '✅ Model loaded — fitting…';
+  <script>
+    const statusEl = document.getElementById("status");
+    const scene    = document.querySelector("a-scene");
+    const modelEl  = document.getElementById("shiva-model");
+    const targetEl = document.querySelector("[mindar-image-target]");
 
-        const obj = this.el.getObject3D('mesh');
-        if (!obj) { statusEl.textContent = '⚠️ No mesh'; return; }
+    function showStatus(text) {
+      statusEl.textContent = text;
+      statusEl.classList.remove("hidden");
+    }
 
-        obj.updateMatrixWorld(true);
-
-        const box = new THREE.Box3();
-        obj.traverse(child => {
-          if (child.isMesh && child.geometry) {
-            child.geometry.computeBoundingBox();
-            const cb = child.geometry.boundingBox.clone();
-            cb.applyMatrix4(child.matrixWorld);
-            box.union(cb);
-          }
-        });
-
-        const size   = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-
-        if (isNaN(size.x) || size.x === 0) {
-          statusEl.textContent = '⚠️ Using default scale';
-          // Still apply rotation fix even if scale fails
-          this.el.setAttribute('rotation', '0 0 0');
-          return;
-        }
-
-        const TARGET    = 0.9;
-        const autoScale = TARGET / Math.max(size.x, size.y, size.z);
-        // Sit model base ON the marker (not below it)
-        const offsetY   = (size.y * autoScale * 0.5) - (center.y * autoScale);
-
-        this.el.setAttribute('scale',    `${autoScale} ${autoScale} ${autoScale}`);
-        this.el.setAttribute('position', `0 ${offsetY} 0`);
-        // rotation=0 0 0 — let the slider tune if needed
-        this.el.setAttribute('rotation', '0 0 0');
-
-        document.getElementById('sl-scale').value = autoScale.toFixed(2);
-        document.getElementById('lbl-scale').textContent = autoScale.toFixed(2);
-        document.getElementById('sl-y').value = offsetY.toFixed(2);
-        document.getElementById('lbl-y').textContent = offsetY.toFixed(2);
-        document.getElementById('sl-ry').value = '0';
-        document.getElementById('lbl-ry').textContent = '0';
-
-        statusEl.textContent = 'Point camera at marker 🔱';
+    // Model loaded
+    if (modelEl) {
+      modelEl.addEventListener("model-loaded", () => {
+        showStatus("✅ Model loaded — scan the marker!");
+        console.log("✅ GLB model loaded");
       });
-
-      this.el.addEventListener('model-error', e => {
-        statusEl.textContent = '❌ GLB failed — check shiva.glb path';
-        console.error(e.detail);
+      modelEl.addEventListener("model-error", (e) => {
+        showStatus("❌ Model failed to load");
+        console.error("Model error:", e);
       });
     }
-  });
 
-  modelEl.setAttribute('auto-fit', '');
+    // Target found / lost
+    if (targetEl) {
+      targetEl.addEventListener("targetFound", () => {
+        showStatus("🙏 Om Namah Shivaya!");
+        setTimeout(() => statusEl.classList.add("hidden"), 3000);
+      });
+      targetEl.addEventListener("targetLost", () => {
+        showStatus("🔍 Point camera at the marker...");
+      });
+    }
 
-  // ── Sliders ────────────────────────────────────────────────
-  function bindSlider(id, lblId, fn) {
-    const sl = document.getElementById(id);
-    const lb = document.getElementById(lblId);
-    sl.addEventListener('input', () => {
-      lb.textContent = parseFloat(sl.value).toFixed(sl.step < 1 ? 2 : 0);
-      fn(parseFloat(sl.value));
-    });
-  }
+    // AR ready / error
+    if (scene) {
+      scene.addEventListener("arReady", () => {
+        showStatus("📷 Camera ready — scan the marker!");
+        console.log("✅ AR ready, camera active");
+      });
+      scene.addEventListener("arError", (e) => {
+        showStatus("❌ Camera failed — allow permission & use HTTPS");
+        console.error("AR Error:", e);
+      });
+    }
+  </script>
 
-  bindSlider('sl-scale', 'lbl-scale', v => {
-    modelEl.setAttribute('scale', `${v} ${v} ${v}`);
-  });
-  bindSlider('sl-y', 'lbl-y', v => {
-    const p = modelEl.getAttribute('position');
-    modelEl.setAttribute('position', `${p.x} ${v} ${p.z}`);
-  });
-  bindSlider('sl-ry', 'lbl-ry', v => {
-    const r = modelEl.getAttribute('rotation');
-    modelEl.setAttribute('rotation', `${r.x} ${v} ${r.z}`);
-  });
-
-  function logValues() {
-    const s = modelEl.getAttribute('scale');
-    const p = modelEl.getAttribute('position');
-    const r = modelEl.getAttribute('rotation');
-    const msg = `scale="${s.x.toFixed(3)} ${s.y.toFixed(3)} ${s.z.toFixed(3)}" `
-              + `position="${p.x.toFixed(3)} ${p.y.toFixed(3)} ${p.z.toFixed(3)}" `
-              + `rotation="${r.x} ${r.y} ${r.z}"`;
-    console.log(msg);
-    statusEl.textContent = msg;
-  }
-
-  document.querySelector('[mindar-image-target]')
-    .addEventListener('targetFound', () => statusEl.textContent = '🔱 Shiva Appeared!');
-  document.querySelector('[mindar-image-target]')
-    .addEventListener('targetLost',  () => statusEl.textContent = 'Scan the marker…');
-</script>
 </body>
 </html>
