@@ -10,16 +10,20 @@
   *, html, body { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; overflow:hidden; background:#000; }
   a-scene { position:fixed; top:0; left:0; width:100%; height:100%; }
+
   #status {
     position:fixed; top:16px; left:50%; transform:translateX(-50%);
-    z-index:9999; background:rgba(0,0,0,0.85); color:#f4a800;
-    padding:10px 20px; border-radius:30px; font-size:12px;
+    z-index:9999; background:rgba(0,0,0,0.75); color:#f4a800;
+    padding:10px 24px; border-radius:30px; font-size:13px;
     text-align:center; max-width:92vw; line-height:1.5;
+    font-family: Arial, sans-serif;
   }
+
   #controls {
     position:fixed; bottom:0; left:0; right:0; z-index:9999;
     background:rgba(0,0,0,0.88); padding:12px 16px;
     display:flex; flex-direction:column; gap:8px;
+    font-family: Arial, sans-serif;
   }
   .ctrl-row { display:flex; align-items:center; gap:10px; }
   .ctrl-row label { color:#f4a800; font-size:11px; width:80px; flex-shrink:0; }
@@ -33,7 +37,7 @@
 </head>
 <body>
 
-<div id="status">Loading model…</div>
+<div id="status">Loading…</div>
 
 <div id="controls">
   <div class="ctrl-row">
@@ -55,10 +59,10 @@
 </div>
 
 <a-scene
-  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;"
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes;"
   embedded
   color-space="sRGB"
-  renderer="colorManagement:true; physicallyCorrectLights:true;"
+  renderer="colorManagement:true; physicallyCorrectLights:true; alpha:true;"
   vr-mode-ui="enabled:false"
   device-orientation-permission-ui="enabled:false"
 >
@@ -70,23 +74,13 @@
   <a-light type="directional" color="#ffffff" intensity="4" position="1 3 2"></a-light>
 
   <a-entity mindar-image-target="targetIndex: 0">
-
-    <!-- Bright test box — MUST appear floating on marker if tracking works -->
-    <a-box
-      width="0.3" height="0.3" depth="0.3"
-      position="0 0.15 0"
-      color="#ff0000"
-      material="emissive:#ff0000; emissiveIntensity:2;">
-    </a-box>
-
     <a-entity
       id="model"
       gltf-model="#shiva-model"
-      position="0 0.5 0"
+      position="0 0 0"
       rotation="0 180 0"
       scale="0.5 0.5 0.5"
     ></a-entity>
-
   </a-entity>
 
   <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
@@ -96,68 +90,56 @@
   const statusEl = document.getElementById('status');
   const modelEl  = document.getElementById('model');
 
-  // ── Register a component to safely access the loaded mesh ──
   AFRAME.registerComponent('auto-fit', {
     init: function () {
       this.el.addEventListener('model-loaded', () => {
-        statusEl.textContent = '✅ GLB loaded — measuring…';
+        statusEl.textContent = '✅ Model loaded — measuring…';
 
-        // Traverse all meshes and compute a combined bounding box
         const obj = this.el.getObject3D('mesh');
-        if (!obj) {
-          statusEl.textContent = '⚠️ No mesh object found';
-          return;
-        }
+        if (!obj) { statusEl.textContent = '⚠️ No mesh found'; return; }
 
-        // Force matrix updates first
         obj.updateMatrixWorld(true);
 
         const box = new THREE.Box3();
         obj.traverse(child => {
           if (child.isMesh && child.geometry) {
             child.geometry.computeBoundingBox();
-            const childBox = child.geometry.boundingBox.clone();
-            childBox.applyMatrix4(child.matrixWorld);
-            box.union(childBox);
+            const cb = child.geometry.boundingBox.clone();
+            cb.applyMatrix4(child.matrixWorld);
+            box.union(cb);
           }
         });
 
         const size   = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
 
-        console.log('✅ Computed size:', size);
-        console.log('✅ Computed center:', center);
-
         if (isNaN(size.x) || size.x === 0) {
-          statusEl.textContent = '⚠️ Bounding box still NaN — using default scale 0.5';
+          statusEl.textContent = '⚠️ Could not measure — using default scale';
           return;
         }
 
-        const TARGET   = 0.9;
-        const rawMax   = Math.max(size.x, size.y, size.z);
-        const autoScale = TARGET / rawMax;
-        const offsetY  = -center.y * autoScale + (size.y * autoScale * 0.5);
+        const TARGET    = 0.9;
+        const autoScale = TARGET / Math.max(size.x, size.y, size.z);
+        const offsetY   = -center.y * autoScale + (size.y * autoScale * 0.5);
 
         this.el.setAttribute('scale', `${autoScale} ${autoScale} ${autoScale}`);
         this.el.setAttribute('position', `0 ${offsetY} 0`);
 
-        document.getElementById('sl-scale').value = autoScale.toFixed(3);
-        document.getElementById('lbl-scale').textContent = autoScale.toFixed(3);
-        document.getElementById('sl-y').value = offsetY.toFixed(3);
-        document.getElementById('lbl-y').textContent = offsetY.toFixed(3);
+        document.getElementById('sl-scale').value = autoScale.toFixed(2);
+        document.getElementById('lbl-scale').textContent = autoScale.toFixed(2);
+        document.getElementById('sl-y').value = offsetY.toFixed(2);
+        document.getElementById('lbl-y').textContent = offsetY.toFixed(2);
 
-        statusEl.innerHTML =
-          `Scale: ${autoScale.toFixed(3)} | Y: ${offsetY.toFixed(3)}<br>🔱 Scan the marker!`;
+        statusEl.textContent = 'Point camera at marker 🔱';
       });
 
       this.el.addEventListener('model-error', e => {
-        statusEl.innerHTML = '❌ GLB FAILED TO LOAD<br>Check: shiva.glb same folder as index.html';
-        console.error('model-error', e.detail);
+        statusEl.textContent = '❌ GLB failed — check shiva.glb path';
+        console.error(e.detail);
       });
     }
   });
 
-  // Attach component to model entity
   modelEl.setAttribute('auto-fit', '');
 
   // ── Sliders ────────────────────────────────────────────────
@@ -170,9 +152,7 @@
     });
   }
 
-  bindSlider('sl-scale', 'lbl-scale', v => {
-    modelEl.setAttribute('scale', `${v} ${v} ${v}`);
-  });
+  bindSlider('sl-scale', 'lbl-scale', v => modelEl.setAttribute('scale', `${v} ${v} ${v}`));
   bindSlider('sl-y', 'lbl-y', v => {
     const p = modelEl.getAttribute('position');
     modelEl.setAttribute('position', `${p.x} ${v} ${p.z}`);
@@ -186,22 +166,33 @@
     const s = modelEl.getAttribute('scale');
     const p = modelEl.getAttribute('position');
     const r = modelEl.getAttribute('rotation');
-    const msg = `scale="${s.x.toFixed(3)} ${s.y.toFixed(3)} ${s.z.toFixed(3)}" ` +
-                `position="${p.x.toFixed(3)} ${p.y.toFixed(3)} ${p.z.toFixed(3)}" ` +
-                `rotation="${r.x} ${r.y} ${r.z}"`;
-    console.log('Final values:', msg);
+    const msg = `scale="${s.x.toFixed(3)} ${s.y.toFixed(3)} ${s.z.toFixed(3)}" `
+              + `position="${p.x.toFixed(3)} ${p.y.toFixed(3)} ${p.z.toFixed(3)}" `
+              + `rotation="${r.x} ${r.y} ${r.z}"`;
+    console.log(msg);
     statusEl.textContent = msg;
   }
 
   // ── Marker events ──────────────────────────────────────────
   document.querySelector('[mindar-image-target]')
-    .addEventListener('targetFound', () => {
-      statusEl.textContent = '🔱 Marker found! Do you see the RED BOX?';
-    });
+    .addEventListener('targetFound', () => statusEl.textContent = '🔱 Shiva Appeared!');
   document.querySelector('[mindar-image-target]')
-    .addEventListener('targetLost',  () => {
-      statusEl.textContent = 'Scan the marker…';
-    });
+    .addEventListener('targetLost',  () => statusEl.textContent = 'Scan the marker…');
+
+  // ── Ensure camera video renders through ───────────────────
+  document.querySelector('a-scene').addEventListener('loaded', () => {
+    setTimeout(() => {
+      const video = document.querySelector('video');
+      if (video) {
+        video.style.cssText = [
+          'position:fixed', 'top:0', 'left:0',
+          'width:100%', 'height:100%',
+          'object-fit:cover',
+          'z-index:1'
+        ].join('!important;') + '!important';
+      }
+    }, 1000);
+  });
 </script>
 </body>
 </html>
