@@ -5,213 +5,186 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Shiva AR Experience</title>
 
+  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+
+  <!-- MindAR Image Tracking -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  <!-- GPU particle system -->
-  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-particle-system-component@1.2.0/dist/aframe-particle-system-component.min.js"></script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
     video {
-      position: fixed !important; top: 0 !important; left: 0 !important;
-      width: 100vw !important; height: 100vh !important;
-      object-fit: cover !important; z-index: 1 !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      object-fit: cover !important;
+      z-index: 1 !important;
     }
+
     canvas.a-canvas {
-      position: fixed !important; top: 0 !important; left: 0 !important;
-      width: 100vw !important; height: 100vh !important; z-index: 2 !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 2 !important;
     }
+
     #status {
-      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-      z-index: 9999; background: rgba(0,0,0,0.75); color: #f4a800;
-      padding: 10px 24px; border-radius: 30px; font-size: 14px; font-weight: 600;
-      backdrop-filter: blur(6px); border: 1px solid rgba(244,168,0,0.3);
-      transition: opacity 0.5s ease; pointer-events: none; white-space: nowrap;
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.75);
+      color: #f4a800;
+      padding: 10px 24px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid rgba(244, 168, 0, 0.3);
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+      white-space: nowrap;
     }
-    #status.hidden { opacity: 0; }
+
+    #status.hidden {
+      opacity: 0;
+    }
   </style>
 </head>
+
 <body>
 
-<div id="status">🙏 Starting Camera...</div>
+  <div id="status">🙏 Starting Camera...</div>
 
-<a-scene
-  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
-  color-space="sRGB"
-  renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
-  vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: false"
->
-  <a-assets timeout="60000">
-    <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
-  </a-assets>
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: no; uiLoading: no; filterMinCF: 0.0001; filterBeta: 0.001;"
+    color-space="sRGB"
+    renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+  >
 
-  <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
-  <a-light type="directional" color="#ffffff" intensity="3" position="0 3 2"></a-light>
-  <a-light type="directional" color="#ffe0b0" intensity="1.5" position="-2 1 -1"></a-light>
+    <!-- Assets -->
+    <a-assets timeout="60000">
+      <a-asset-item id="shiva" src="./shiva.glb"></a-asset-item>
+      <a-asset-item id="fireball" src="./fireball.glb"></a-asset-item>
+    </a-assets>
 
-  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <!-- Lighting -->
+    <a-light type="ambient" color="#ffffff" intensity="2"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="3" position="0 3 2"></a-light>
+    <a-light type="directional" color="#ffe0b0" intensity="1.5" position="-2 1 -1"></a-light>
 
-  <a-entity mindar-image-target="targetIndex: 0">
-    <a-entity position="0 0 0.15" rotation="90 0 0">
+    <!-- Camera -->
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- ── DIVINE FIRE RING (drawn via Three.js shader, not primitives) ── -->
-      <a-entity id="fire-ring-anchor" position="0 0.38 -0.06"></a-entity>
+    <!-- Image Target -->
+    <a-entity mindar-image-target="targetIndex: 0">
 
-      <!-- ── GPU PARTICLES: rising sparks/embers around the ring ── -->
-      <a-entity
-        position="0 0.1 -0.05"
-        particle-system="
-          preset: default;
-          particleCount: 180;
-          color: #ff6600, #ffcc00, #ffffff;
-          size: 0.012, 0.004;
-          opacity: 0.9, 0;
-          velocityValue: 0 0.18 0;
-          velocitySpread: 0.6 0.05 0.6;
-          positionSpread: 0.65 0.02 0.0;
-          accelerationValue: 0 0.04 0;
-          accelerationSpread: 0.1 0.02 0.1;
-          maxAge: 1.8;
-          maxAgeSpread: 0.6;
-          blending: 2;
-          direction: 1;
-          randomize: true;
-        "
-      ></a-entity>
+      <!-- Fireball — rendered FIRST so it sits behind Shiva in scene graph -->
+      <!-- Wrapper tips it upright; inner Z offset pushes it behind the head -->
+      <a-entity position="0 0 0.05" rotation="90 0 0">
+        <a-gltf-model
+          id="fireball-model"
+          src="#fireball"
+          position="0 0 -0.08"
+          rotation="0 270 0"
+          scale="0.6 0.6 0.6"
+        ></a-gltf-model>
+      </a-entity>
 
-      <!-- ── GPU PARTICLES: golden dust swirling at base ── -->
-      <a-entity
-        position="0 0.05 -0.05"
-        particle-system="
-          preset: dust;
-          particleCount: 80;
-          color: #ffaa00, #ff6600;
-          size: 0.018, 0.006;
-          opacity: 0.7, 0;
-          velocityValue: 0 0.05 0;
-          velocitySpread: 0.5 0.02 0.5;
-          positionSpread: 0.55 0.01 0.0;
-          maxAge: 2.5;
-          blending: 2;
-          randomize: true;
-        "
-      ></a-entity>
-
-      <!-- ── THE SHIVA MODEL — always in front ── -->
-      <a-gltf-model
-        id="shiva-model"
-        src="#shiva"
-        position="0 0 0.01"
-        rotation="0 270 0"
-        scale="0.5 0.5 0.5"
-      ></a-gltf-model>
+      <!-- Shiva model — rendered AFTER fireball, appears in front -->
+      <a-entity position="0 0 0.15" rotation="90 0 0">
+        <a-gltf-model
+          id="shiva-model"
+          src="#shiva"
+          position="0 0 0"
+          rotation="0 270 0"
+          scale="0.5 0.5 0.5"
+        ></a-gltf-model>
+      </a-entity>
 
     </a-entity>
-  </a-entity>
 
-</a-scene>
+  </a-scene>
 
-<script>
-  const statusEl = document.getElementById("status");
-  const scene    = document.querySelector("a-scene");
-  const modelEl  = document.getElementById("shiva-model");
-  const targetEl = document.querySelector("[mindar-image-target]");
+  <script>
+    const statusEl   = document.getElementById("status");
+    const scene      = document.querySelector("a-scene");
+    const modelEl    = document.getElementById("shiva-model");
+    const fireballEl = document.getElementById("fireball-model");
+    const targetEl   = document.querySelector("[mindar-image-target]");
 
-  function showStatus(text) {
-    statusEl.textContent = text;
-    statusEl.classList.remove("hidden");
-  }
+    function showStatus(text) {
+      statusEl.textContent = text;
+      statusEl.classList.remove("hidden");
+    }
 
-  // ── Build the fire ring using Three.js directly ──────────────
-  // This is FAR better than A-Frame primitives — uses a proper
-  // RingGeometry with a custom shader that fades from orange→gold→transparent
-  scene.addEventListener("loaded", () => {
+    // Shiva model events
+    if (modelEl) {
+      modelEl.addEventListener("model-loaded", () => {
+        showStatus("✅ Model loaded — scan the marker!");
+        console.log("✅ Shiva GLB loaded");
+      });
+      modelEl.addEventListener("model-error", (e) => {
+        showStatus("❌ Shiva model failed to load");
+        console.error("Shiva model error:", e);
+      });
+    }
 
-    const ringAnchor = document.getElementById("fire-ring-anchor");
+    // Fireball model events
+    if (fireballEl) {
+      fireballEl.addEventListener("model-loaded", () => {
+        console.log("✅ Fireball GLB loaded");
+      });
+      fireballEl.addEventListener("model-error", (e) => {
+        console.error("Fireball model error:", e);
+      });
+    }
 
-    // Custom glowing ring shader
-    const ringMat = new THREE.ShaderMaterial({
-      uniforms: {
-        time:       { value: 0 },
-        colorInner: { value: new THREE.Color(0xffffff) },
-        colorOuter: { value: new THREE.Color(0xff4400) },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform float time;
-        uniform vec3 colorInner;
-        uniform vec3 colorOuter;
-        varying vec2 vUv;
-        void main() {
-          // vUv.y goes 0→1 from inner to outer edge of the ring
-          float t = vUv.y;
-          // Pulsing brightness
-          float pulse = 0.75 + 0.25 * sin(time * 3.0 + vUv.x * 12.566);
-          // Flickering flames along the ring circumference
-          float flame = 0.5 + 0.5 * sin(time * 5.0 + vUv.x * 25.132);
-          // Color: white-yellow inside → orange-red outside
-          vec3 col = mix(colorInner, colorOuter, t);
-          col *= pulse * (0.8 + 0.4 * flame);
-          // Opacity: bright at inner edge, fades to 0 at outer
-          float alpha = (1.0 - t) * (0.85 + 0.15 * pulse);
-          gl_FragColor = vec4(col, alpha);
-        }
-      `,
-      transparent: true,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
+    // Target found / lost
+    if (targetEl) {
+      targetEl.addEventListener("targetFound", () => {
+        showStatus("🙏 Om Namah Shivaya!");
+        setTimeout(() => statusEl.classList.add("hidden"), 3000);
+      });
+      targetEl.addEventListener("targetLost", () => {
+        showStatus("🔍 Point camera at the marker...");
+      });
+    }
 
-    // Ring geometry: innerRadius, outerRadius, thetaSegments
-    const ringGeo = new THREE.RingGeometry(0.52, 0.78, 80, 4);
-    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-    ringAnchor.object3D.add(ringMesh);
+    // AR ready / error
+    if (scene) {
+      scene.addEventListener("arReady", () => {
+        showStatus("📷 Camera ready — scan the marker!");
+        console.log("✅ AR ready, camera active");
+      });
+      scene.addEventListener("arError", (e) => {
+        showStatus("❌ Camera failed — allow permission & use HTTPS");
+        console.error("AR Error:", e);
+      });
+    }
+  </script>
 
-    // Second thinner ring rotated slightly for depth
-    const ringMat2 = ringMat.clone();
-    ringMat2.uniforms = {
-      time:       { value: 0 },
-      colorInner: { value: new THREE.Color(0xffdd66) },
-      colorOuter: { value: new THREE.Color(0xff8800) },
-    };
-    const ringGeo2 = new THREE.RingGeometry(0.55, 0.74, 80, 4);
-    const ringMesh2 = new THREE.Mesh(ringGeo2, ringMat2);
-    ringMesh2.rotation.z = Math.PI / 8; // slight twist
-    ringAnchor.object3D.add(ringMesh2);
-
-    // Animate shader time uniform every frame
-    scene.addEventListener("tick", (e) => {
-      const t = e.detail.time * 0.001;
-      ringMat.uniforms.time.value  = t;
-      ringMat2.uniforms.time.value = t;
-    });
-  });
-
-  // ── Marker events ────────────────────────────────────────────
-  if (modelEl) {
-    modelEl.addEventListener("model-loaded", () => showStatus("✅ Model loaded — scan the marker!"));
-    modelEl.addEventListener("model-error",  () => showStatus("❌ Model failed to load"));
-  }
-  if (targetEl) {
-    targetEl.addEventListener("targetFound", () => {
-      showStatus("🙏 Om Namah Shivaya!");
-      setTimeout(() => statusEl.classList.add("hidden"), 3000);
-    });
-    targetEl.addEventListener("targetLost", () => showStatus("🔍 Point camera at the marker..."));
-  }
-  if (scene) {
-    scene.addEventListener("arReady", () => showStatus("📷 Camera ready — scan the marker!"));
-    scene.addEventListener("arError", () => showStatus("❌ Camera failed — allow permission & use HTTPS"));
-  }
-</script>
 </body>
 </html>
